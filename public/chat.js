@@ -223,6 +223,11 @@ class AESChatApp {
             this.showToast('Room settings updated', 'success');
         });
 
+        this.socket.on('kicked', () => {
+            alert('You have been removed from this room by the creator.');
+            window.location.href = '/';
+        });
+
         this.socket.on('disconnect', () => {
             this.isConnected = false;
             // Show connection lost overlay
@@ -844,12 +849,16 @@ class AESChatApp {
 
         this.members.forEach((member, id) => {
             const isOnline = member.isOnline !== false;
+            const isMe = id === this.socket?.id;
+            const canKick = this.isCreator && !isMe;
+
             list.innerHTML += `
-                <li class="member-item">
+                <li class="member-item" data-user-id="${id}">
                     <div class="member-avatar" style="background: ${member.color}">${this.getInitials(member.name)}</div>
                     <div class="member-info">
-                        <div class="member-name">${this.escapeHtml(member.name)}${id === this.socket?.id ? ' (You)' : ''}</div>
+                        <div class="member-name">${this.escapeHtml(member.name)}${isMe ? ' (You)' : ''}</div>
                     </div>
+                    ${canKick ? `<button onclick="chatApp.kickMember('${id}', '${this.escapeHtml(member.name)}')" class="kick-btn" title="Remove User">✕</button>` : ''}
                     <div class="member-status ${isOnline ? '' : 'offline'}"></div>
                 </li>
             `;
@@ -862,6 +871,12 @@ class AESChatApp {
         navigator.clipboard.writeText(link).then(() => {
             this.showToast('Invite link copied!', 'success');
         });
+    }
+
+    kickMember(userId, userName) {
+        if (confirm(`Are you sure you want to remove ${userName} from the room?`)) {
+            this.socket.emit('kick-member', { targetId: userId });
+        }
     }
 
     // Utility Functions

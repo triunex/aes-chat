@@ -59,6 +59,52 @@ const users = new Map();
 const messageStore = new Map();
 const typingUsers = new Map();
 
+// Persistence Helper
+const DATA_FILE = path.join(__dirname, 'data', 'rooms.json');
+let saveTimeout = null;
+
+function saveRooms() {
+    if (saveTimeout) clearTimeout(saveTimeout);
+    saveTimeout = setTimeout(() => {
+        try {
+            const data = Array.from(rooms.values()).map(room => ({
+                ...room,
+                members: Array.from(room.members.entries()),
+                messages: room.messages // Store all messages
+            }));
+            fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2));
+            console.log('Processed saved room data to disk');
+        } catch (error) {
+            console.error('Failed to save room data:', error);
+        }
+    }, 1000); // 1-second throttle
+}
+
+function loadRooms() {
+    try {
+        if (fs.existsSync(DATA_FILE)) {
+            const rawData = fs.readFileSync(DATA_FILE, 'utf8');
+            const data = JSON.parse(rawData);
+            data.forEach(roomData => {
+                const room = new Room(roomData.id, roomData.name, roomData.createdBy);
+                room.createdAt = new Date(roomData.createdAt);
+                room.settings = roomData.settings;
+                room.messages = roomData.messages || [];
+                // Reset members but keep structure (they need to rejoin to be online)
+                // room.members = new Map(roomData.members); 
+                // Actually better to start empty or mark offline. Let's start empty.
+                rooms.set(room.id, room);
+            });
+            console.log(`Loaded ${rooms.size} rooms from storage`);
+        }
+    } catch (error) {
+        console.error('Failed to load room data:', error);
+    }
+}
+
+// Load persistence on start
+loadRooms();
+
 // Room class for better organization
 class Room {
     constructor(id, name, createdBy) {
@@ -134,6 +180,7 @@ app.post('/api/rooms', (req, res) => {
     const roomId = uuidv4();
     const room = new Room(roomId, name, creatorName);
     rooms.set(roomId, room);
+    saveRooms(); // Save after creation
 
     res.json({
         success: true,
@@ -207,9 +254,10 @@ io.on('connection', (socket) => {
             roomId,
             roomName: room.name,
             members: room.getMembersList(),
-            messages: room.messages.slice(-100), // Last 100 messages
+            messages: room.messages.slice(-5000), // Increased history limit
             settings: room.settings
         });
+        saveRooms(); // Save state
 
         // Notify others
         socket.to(roomId).emit('user-joined', {
@@ -241,6 +289,7 @@ io.on('connection', (socket) => {
 
         room.messages.push(message);
         io.to(currentRoom).emit('message', message);
+        saveRooms();
 
         // Handle disappearing messages
         if (message.disappearAt) {
@@ -335,6 +384,7 @@ io.on('connection', (socket) => {
                 newContent,
                 editedAt: message.editedAt
             });
+            saveRooms();
         }
     });
 
@@ -350,6 +400,7 @@ io.on('connection', (socket) => {
             message.content = 'This message was deleted';
 
             io.to(currentRoom).emit('message-deleted', { messageId });
+            saveRooms();
         }
     });
 
@@ -384,6 +435,35 @@ io.on('connection', (socket) => {
 
         room.messages.push(message);
         io.to(currentRoom).emit('message', message);
+        saveRooms();
+    });
+
+    // Kick Member
+    socket.on('kick-member', ({ targetId }) => {
+        if (!currentRoom) return;
+        const room = rooms.get(currentRoom);
+
+        // Verify only creator can kick
+        if (room && room.createdBy === currentUser.name) {
+            const targetSocket = io.sockets.sockets.get(targetId);
+
+            // Remove from room data
+            room.removeMember(targetId);
+
+            // Notify target and disconnect them from room
+            if (targetSocket) {
+                targetSocket.leave(currentRoom);
+                targetSocket.emit('kicked', { roomName: room.name });
+            }
+
+            // Notify others
+            io.to(currentRoom).emit('user-left', {
+                user: { id: targetId }, // Partial user obj just for ID
+                members: room.getMembersList()
+            });
+
+            saveRooms();
+        }
     });
 
     // User presence
@@ -398,6 +478,7 @@ io.on('connection', (socket) => {
                 userId: socket.id,
                 status
             });
+            saveRooms();
         }
     });
 
@@ -414,19 +495,12 @@ io.on('connection', (socket) => {
                     user: currentUser,
                     members: room.getMembersList()
                 });
-
-                // Clean up empty rooms after 24 hours
-                if (room.members.size === 0) {
-                    setTimeout(() => {
-                        if (room.members.size === 0) {
-                            rooms.delete(currentRoom);
-                        }
-                    }, 24 * 60 * 60 * 1000);
-                }
+                // No more auto-delete - persist forever
             }
         }
 
         users.delete(socket.id);
+        saveRooms(); // Save state on disconnect too
     });
 });
 
