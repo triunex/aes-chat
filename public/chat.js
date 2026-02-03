@@ -37,6 +37,10 @@ class AESChatApp {
             // Derive room encryption key
             if (window.AESEncryption) {
                 this.roomKey = await window.AESEncryption.deriveRoomKey(this.roomId);
+            } else {
+                console.error('Encryption module not loaded');
+                this.showToast('Security Error: Encryption module failed to load', 'error');
+                return;
             }
 
             this.initTheme();
@@ -221,10 +225,16 @@ class AESChatApp {
 
         this.socket.on('disconnect', () => {
             this.isConnected = false;
-            this.showToast('Disconnected. Reconnecting...', 'error');
+            // Show connection lost overlay
+            const overlay = document.getElementById('connectionOverlay');
+            if (overlay) overlay.classList.remove('hidden');
         });
 
         this.socket.on('connect', () => {
+            // Hide connection lost overlay
+            const overlay = document.getElementById('connectionOverlay');
+            if (overlay) overlay.classList.add('hidden');
+
             if (this.currentUser && !this.isConnected) {
                 this.socket.emit('join-room', {
                     roomId: this.roomId,

@@ -133,11 +133,7 @@ select {
 }
 
 .gradient-sphere {
-    position: absolute;
-    border-radius: 50%;
-    filter: blur(80px);
-    opacity: 0.4;
-    animation: float 20s ease-in-out infinite;
+    display: none;
 }
 
 .sphere-1 {

@@ -5,6 +5,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AES Chat Room</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    <link rel="icon" type="image/png" href="/favicon.png">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/styles.css">
     <link rel="stylesheet" href="/chat.css">
@@ -36,6 +38,28 @@
                             </svg>
                         </button>
                     </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Connection Lost Overlay -->
+        <div class="modal-overlay hidden" id="connectionOverlay">
+            <div class="modal-card">
+                <div class="modal-content" style="border-color: var(--error);">
+                    <div class="modal-icon" style="background: rgba(239, 68, 68, 0.1); color: var(--error);">
+                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="1.5">
+                            <line x1="1" y1="1" x2="23" y2="23" />
+                            <path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55" />
+                            <path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39" />
+                            <path d="M10.71 5.05A16 16 0 0 1 22.58 9" />
+                            <path d="M1.42 9a15.91 15.91 0 0 1 4.7-2.88" />
+                            <path d="M8.53 16.11a6 6 0 0 1 6.95 0" />
+                            <line x1="12" y1="20" x2="12.01" y2="20" />
+                        </svg>
+                    </div>
+                    <h2>Connection Lost</h2>
+                    <p>Reconnecting to secure server...</p>
                 </div>
             </div>
         </div>
