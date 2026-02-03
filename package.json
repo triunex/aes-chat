@@ -1,0 +1,31 @@
+{
+  "name": "aes-chat",
+  "version": "1.0.0",
+  "description": "Premium end-to-end encrypted chat rooms with advanced features",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js",
+    "build": "echo 'No build step required'"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "keywords": [
+    "chat",
+    "encrypted",
+    "real-time",
+    "socket.io",
+    "aes"
+  ],
+  "author": "AES Chat Team",
+  "license": "MIT",
+  "dependencies": {
+    "crypto-js": "^4.2.0",
+    "express": "^5.2.1",
+    "marked": "^17.0.1",
+    "multer": "^2.0.2",
+    "socket.io": "^4.8.3",
+    "uuid": "^13.0.0"
+  }
+}
