@@ -11,7 +11,7 @@ function initTheme() {
     const savedTheme = localStorage.getItem('aes-theme') || 'dark';
 
     document.documentElement.setAttribute('data-theme', savedTheme);
-    updateThemeIcon(savedTheme);
+    // Icons are handled by CSS display block/none logic now, no need to set textContent
 
     themeToggle.addEventListener('click', () => {
         const currentTheme = document.documentElement.getAttribute('data-theme');
@@ -19,13 +19,11 @@ function initTheme() {
 
         document.documentElement.setAttribute('data-theme', newTheme);
         localStorage.setItem('aes-theme', newTheme);
-        updateThemeIcon(newTheme);
     });
 }
 
 function updateThemeIcon(theme) {
-    const themeToggle = document.getElementById('themeToggle');
-    themeToggle.textContent = theme === 'dark' ? '☀️' : '🌙';
+    // Deprecated: CSS handles this
 }
 
 // Create Room Form
@@ -81,7 +79,10 @@ function initCreateRoomForm() {
             showError('Network error. Please check your connection.');
         } finally {
             submitBtn.disabled = false;
-            submitBtn.innerHTML = '<span>Create Room</span> →';
+            submitBtn.innerHTML = `<span>Create Room</span>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M5 12h14M12 5l7 7-7 7"/>
+            </svg>`;
         }
     });
 }

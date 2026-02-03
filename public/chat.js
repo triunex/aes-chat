@@ -34,26 +34,30 @@ class AESChatApp {
                 return;
             }
 
-            // Check if this user is the room creator (coming from landing page)
-            const creatorName = sessionStorage.getItem('aes-joining-name');
-            this.isCreator = !!creatorName;
-
             // Derive room encryption key
             if (window.AESEncryption) {
                 this.roomKey = await window.AESEncryption.deriveRoomKey(this.roomId);
             }
 
             this.initTheme();
-            this.initEmojiPicker();
+            // this.initEmojiPicker(); // Removed in favor of quick reactions
 
-            // Always show modal for link joiners (non-creators)
-            // Only auto-join if coming from landing page with a name
-            if (this.isCreator && creatorName) {
+            // Check for saved name (from landing page or localStorage)
+            const creatorName = sessionStorage.getItem('aes-joining-name');
+            const savedName = localStorage.getItem(`aes-chat-name-${this.roomId}`);
+
+            if (creatorName) {
+                // Coming from landing page - save to localStorage and join
                 sessionStorage.removeItem('aes-joining-name');
+                localStorage.setItem(`aes-chat-name-${this.roomId}`, creatorName);
                 this.hideModal();
                 this.joinRoom(creatorName);
+            } else if (savedName) {
+                // Already joined this room before - auto-join with saved name
+                this.hideModal();
+                this.joinRoom(savedName);
             } else {
-                // Show modal for everyone joining via link
+                // New visitor to this room - show modal
                 this.showJoinModal();
             }
         } catch (error) {
@@ -104,6 +108,8 @@ class AESChatApp {
             const nameInput = document.getElementById('joinUserName');
             const name = nameInput.value.trim();
             if (name) {
+                // Save name for this room - persists across refreshes
+                localStorage.setItem(`aes-chat-name-${this.roomId}`, name);
                 this.hideModal();
                 this.joinRoom(name);
             }
@@ -433,6 +439,14 @@ class AESChatApp {
 
         list.appendChild(messageEl);
         this.messages.push(msg);
+
+        // Handle image loading scroll
+        if (msg.type === 'image') {
+            const img = messageEl.querySelector('img');
+            if (img) {
+                img.onload = () => this.scrollToBottom();
+            }
+        }
 
         if (animate) {
             this.scrollToBottom();
@@ -892,15 +906,16 @@ class AESChatApp {
     }
 
     getFileIcon(mimetype) {
-        if (mimetype?.startsWith('image/')) return '📷';
-        if (mimetype?.startsWith('video/')) return '🎬';
-        if (mimetype?.startsWith('audio/')) return '🎵';
-        if (mimetype?.includes('pdf')) return '📄';
-        if (mimetype?.includes('zip') || mimetype?.includes('rar')) return '📦';
-        return '📎';
+        if (mimetype?.startsWith('image/')) return `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>`;
+        if (mimetype?.startsWith('video/')) return `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>`;
+        if (mimetype?.startsWith('audio/')) return `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>`;
+        if (mimetype?.includes('pdf')) return `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>`;
+        if (mimetype?.includes('zip') || mimetype?.includes('rar')) return `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>`;
+        return `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>`;
     }
 
     escapeHtml(text) {
+        if (!text) return '';
         const div = document.createElement('div');
         div.textContent = text;
         return div.innerHTML;
@@ -910,19 +925,22 @@ class AESChatApp {
         const toast = document.createElement('div');
         toast.className = 'toast';
         toast.innerHTML = `
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                ${type === 'error'
+            <div class="toast-icon">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    ${type === 'error'
                 ? '<circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>'
                 : '<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>'}
-            </svg>
+                </svg>
+            </div>
             <span>${message}</span>
         `;
         toast.style.cssText = `
             position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%);
             background: ${type === 'error' ? '#ef4444' : 'var(--accent-primary)'}; color: white;
-            padding: 12px 20px; border-radius: 8px; font-size: 14px; z-index: 1000;
-            display: flex; align-items: center; gap: 8px;
-            animation: slideUp 0.3s ease; box-shadow: var(--shadow-lg);
+            padding: 12px 20px; border-radius: 99px; font-size: 14px; z-index: 2000;
+            display: flex; align-items: center; gap: 12px; font-weight: 500;
+            animation: slideUp 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2); backdrop-filter: blur(8px);
         `;
         document.body.appendChild(toast);
         setTimeout(() => {
