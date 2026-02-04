@@ -13,6 +13,7 @@
 
 const express = require('express');
 const http = require('http');
+const https = require('https');
 const { Server } = require('socket.io');
 const { v4: uuidv4 } = require('uuid');
 const multer = require('multer');
@@ -201,11 +202,8 @@ initPersistence();
 // Keep-Alive Ping
 app.get('/ping', (req, res) => res.status(200).send('pong'));
 setInterval(() => {
-    http.get(`${APP_URL}/ping`, (res) => {
-        // console.log('Self-ping sent');
-    }).on('error', (err) => {
-        // console.error('Self-ping failed:', err.message);
-    });
+    const pingModule = APP_URL.startsWith('https') ? https : http;
+    pingModule.get(`${APP_URL}/ping`, () => { }).on('error', () => { });
 }, PING_INTERVAL);
 
 // Room class for better organization
