@@ -18,6 +18,11 @@ const { v4: uuidv4 } = require('uuid');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const admin = require('firebase-admin');
+
+// Keep-Alive Mechanism
+const PING_INTERVAL = 5 * 60 * 1000; // 5 minutes
+const APP_URL = process.env.RENDER_EXTERNAL_URL || `http://localhost:${process.env.PORT || 3000}`;
 
 const app = express();
 const server = http.createServer(app);
@@ -59,51 +64,138 @@ const users = new Map();
 const messageStore = new Map();
 const typingUsers = new Map();
 
-// Persistence Helper
-const DATA_FILE = path.join(__dirname, 'data', 'rooms.json');
+// Persistence Logic
+const DATA_DIR = path.join(__dirname, 'data');
+const DATA_FILE = path.join(DATA_DIR, 'rooms.json');
 let saveTimeout = null;
+let db = null;
+let useFirebase = false;
 
+// Initialize Persistence
+async function initPersistence() {
+    // 1. Try Firebase first (for Render)
+    try {
+        if (process.env.FIREBASE_SERVICE_ACCOUNT) {
+            const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+            admin.initializeApp({
+                credential: admin.credential.cert(serviceAccount)
+            });
+            db = admin.firestore();
+            useFirebase = true;
+            console.log('✅ Firebase initialized for persistence');
+        }
+    } catch (e) {
+        console.error('⚠️ Firebase init failed (falling back to local):', e.message);
+    }
+
+    // 2. Fallback to Local File
+    if (!useFirebase) {
+        if (!fs.existsSync(DATA_DIR)) {
+            fs.mkdirSync(DATA_DIR, { recursive: true });
+        }
+        console.log('📂 Using local file storage for persistence');
+    }
+
+    await loadRooms();
+}
+
+// Save Rooms (Throttled)
 function saveRooms() {
     if (saveTimeout) clearTimeout(saveTimeout);
-    saveTimeout = setTimeout(() => {
+    saveTimeout = setTimeout(async () => {
         try {
-            const data = Array.from(rooms.values()).map(room => ({
-                ...room,
-                members: Array.from(room.members.entries()),
-                messages: room.messages // Store all messages
-            }));
-            fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2));
-            console.log('Processed saved room data to disk');
+            if (useFirebase) {
+                // Save to Firestore (Batch write or individual)
+                // For simplicity/robustness, we'll save each room as a doc
+                const batch = db.batch();
+                rooms.forEach((room, roomId) => {
+                    const docRef = db.collection('rooms').doc(roomId);
+                    const roomData = {
+                        id: room.id,
+                        name: room.name,
+                        createdBy: room.createdBy,
+                        createdAt: room.createdAt.toISOString(),
+                        settings: room.settings,
+                        messages: room.messages.map(m => ({ ...m, timestamp: m.timestamp.toISOString() })),
+                        // Don't save transient members store, they re-join
+                    };
+                    batch.set(docRef, roomData, { merge: true });
+                });
+                await batch.commit();
+                // console.log('Saved to Firebase');
+            } else {
+                // Local File Save
+                const data = Array.from(rooms.values()).map(room => ({
+                    ...room,
+                    members: Array.from(room.members.entries()),
+                    messages: room.messages
+                }));
+                fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2));
+                // console.log('Saved to local disk');
+            }
         } catch (error) {
             console.error('Failed to save room data:', error);
         }
-    }, 1000); // 1-second throttle
+    }, 2000); // 2-second throttle
 }
 
-function loadRooms() {
+// Load Rooms
+async function loadRooms() {
     try {
-        if (fs.existsSync(DATA_FILE)) {
-            const rawData = fs.readFileSync(DATA_FILE, 'utf8');
-            const data = JSON.parse(rawData);
-            data.forEach(roomData => {
-                const room = new Room(roomData.id, roomData.name, roomData.createdBy);
-                room.createdAt = new Date(roomData.createdAt);
-                room.settings = roomData.settings;
-                room.messages = roomData.messages || [];
-                // Reset members but keep structure (they need to rejoin to be online)
-                // room.members = new Map(roomData.members); 
-                // Actually better to start empty or mark offline. Let's start empty.
+        if (useFirebase) {
+            const snapshot = await db.collection('rooms').get();
+            if (snapshot.empty) return;
+
+            snapshot.forEach(doc => {
+                const data = doc.data();
+                const room = new Room(data.id, data.name, data.createdBy);
+                room.createdAt = new Date(data.createdAt);
+                room.settings = data.settings;
+                // Hydrate messages
+                room.messages = (data.messages || []).map(m => {
+                    const msg = new Message(m); // Message ctor handles basic copy
+                    msg.id = m.id;
+                    msg.timestamp = new Date(m.timestamp);
+                    msg.reactions = m.reactions || {};
+                    msg.readBy = m.readBy || [];
+                    msg.fileData = m.fileData; // Ensure file data is preserved
+                    return msg;
+                });
                 rooms.set(room.id, room);
             });
-            console.log(`Loaded ${rooms.size} rooms from storage`);
+            console.log(`🔥 Loaded ${rooms.size} rooms from Firebase`);
+        } else {
+            // Local Load
+            if (fs.existsSync(DATA_FILE)) {
+                const rawData = fs.readFileSync(DATA_FILE, 'utf8');
+                const data = JSON.parse(rawData);
+                data.forEach(roomData => {
+                    const room = new Room(roomData.id, roomData.name, roomData.createdBy);
+                    room.createdAt = new Date(roomData.createdAt);
+                    room.settings = roomData.settings;
+                    room.messages = roomData.messages || [];
+                    rooms.set(room.id, room);
+                });
+                console.log(`📂 Loaded ${rooms.size} rooms from local storage`);
+            }
         }
     } catch (error) {
         console.error('Failed to load room data:', error);
     }
 }
 
-// Load persistence on start
-loadRooms();
+// Start persistence
+initPersistence();
+
+// Keep-Alive Ping
+app.get('/ping', (req, res) => res.status(200).send('pong'));
+setInterval(() => {
+    http.get(`${APP_URL}/ping`, (res) => {
+        // console.log('Self-ping sent');
+    }).on('error', (err) => {
+        // console.error('Self-ping failed:', err.message);
+    });
+}, PING_INTERVAL);
 
 // Room class for better organization
 class Room {
