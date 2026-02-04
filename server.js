@@ -73,10 +73,21 @@ let useFirebase = false;
 
 // Initialize Persistence
 async function initPersistence() {
-    // 1. Try Firebase first (for Render)
+    // 1. Try Firebase
     try {
-        if (process.env.FIREBASE_SERVICE_ACCOUNT) {
-            const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+        let serviceAccount;
+        const localKeyPath = path.join(__dirname, 'service-account.json');
+
+        if (fs.existsSync(localKeyPath)) {
+            // Local Dev: Read from file
+            serviceAccount = JSON.parse(fs.readFileSync(localKeyPath, 'utf8'));
+            console.log('✅ Found local Firebase credentials');
+        } else if (process.env.FIREBASE_SERVICE_ACCOUNT) {
+            // Render/Cloud: Read from ENV
+            serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+        }
+
+        if (serviceAccount) {
             admin.initializeApp({
                 credential: admin.credential.cert(serviceAccount)
             });
