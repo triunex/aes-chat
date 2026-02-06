@@ -3,6 +3,11 @@
  * Real-time encrypted messaging with advanced features
  */
 
+import { SpatialAudioEngine } from './modules/audio/spatial-engine.js';
+
+// Global Socket, defined in HTML script
+// const socket = io(); // We use this.socket inside class.
+
 class AESChatApp {
     constructor() {
         this.socket = null;
@@ -962,6 +967,57 @@ class AESChatApp {
         const div = document.createElement('div');
         div.textContent = text;
         return div.innerHTML;
+    }
+
+    // Holo-Spatial Audio
+    toggleSpatialRadar() {
+        const panel = document.getElementById('spatialRadarParams');
+        if (panel) {
+            const isHidden = panel.classList.contains('hidden');
+            if (isHidden) {
+                panel.classList.remove('hidden');
+                if (!this.spatialEngine) {
+                    this.initSpatialAudio();
+                }
+            } else {
+                panel.classList.add('hidden');
+            }
+        }
+    }
+
+    initSpatialAudio() {
+        try {
+            this.spatialEngine = new SpatialAudioEngine();
+            const container = document.getElementById('radarContainer');
+            if (container) {
+                this.spatialEngine.mountRadar(container);
+
+                // Add room members to radar (Visual Only for now)
+                this.members.forEach((member, id) => {
+                    if (id !== this.socket?.id) {
+                        // Create a silent dummy stream just to visualize the node
+                        const ctx = this.spatialEngine.ctx;
+                        const osc = ctx.createOscillator();
+                        const gain = ctx.createGain();
+                        gain.gain.value = 0; // Silent
+                        const dest = ctx.createMediaStreamDestination();
+                        osc.connect(gain);
+                        gain.connect(dest);
+                        osc.start();
+
+                        this.spatialEngine.addSource(id, dest.stream);
+                        // Update color
+                        const node = this.spatialEngine.sources.get(id);
+                        if (node) node.color = member.color;
+                    }
+                });
+
+                this.showToast('Holo-Space Activated. Drag users to position audio sources (Simulation Mode).', 'success');
+            }
+        } catch (e) {
+            console.error('Spatial Audio Error:', e);
+            this.showToast('Failed to initialize Spatial Audio', 'error');
+        }
     }
 
     showToast(message, type = 'success') {

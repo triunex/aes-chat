@@ -140,6 +140,15 @@
         </aside>
 
         <!-- Main Chat Area -->
+        <!-- Holo-Spatial Radar (Hidden by default) -->
+        <div id="spatialRadarParams" class="hidden">
+            <div class="radar-header">
+                <h3>HOLO-SPACE</h3>
+                <button onclick="chatApp.toggleSpatialRadar()" class="close-radar">✕</button>
+            </div>
+            <div id="radarContainer"></div>
+        </div>
+
         <main class="chat-main">
             <header class="chat-header">
                 <button class="mobile-menu" id="mobileMenu">
@@ -154,6 +163,15 @@
                     <div class="typing-indicator" id="typingIndicator"></div>
                 </div>
                 <div class="header-actions">
+                    <button class="icon-btn" onclick="chatApp.toggleSpatialRadar()" title="Enter Holo-Space">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z" />
+                            <path d="M2 12h20" />
+                            <path
+                                d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+                        </svg>
+                    </button>
                     <button class="icon-btn" id="searchBtn" title="Search">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                             stroke-width="2">
@@ -299,7 +317,7 @@
 
     <script src="/socket.io/socket.io.js"></script>
     <script src="/encryption.js"></script>
-    <script src="/chat.js"></script>
+    <script type="module" src="/chat.js"></script>
 </body>
 
 </html>
