@@ -419,6 +419,7 @@ class AESChatApp {
             if (this.currentUser && !this.isConnected) {
                 this.socket.emit('join-room', {
                     roomId: this.roomId,
+                    userId: this.userId,
                     userName: this.currentUser.name,
                     userAvatar: this.currentUser.avatar
                 });

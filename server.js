@@ -338,16 +338,20 @@ io.on('connection', (socket) => {
 
         const room = rooms.get(roomId);
         currentRoom = roomId;
+
+        // Fail-safe: Ensure userId is never undefined
+        const persistentId = userId || `temp-${socket.id}`;
+
         currentUser = {
             id: socket.id,
-            userId: userId, // Store persistent ID
+            userId: persistentId, // Store persistent ID
             name: userName,
             avatar: userAvatar,
             color: generateUserColor(userName)
         };
 
         // Add user to room using persistent userId as key to prevent duplicates
-        room.addMember(userId, currentUser);
+        room.addMember(persistentId, currentUser);
         users.set(socket.id, { ...currentUser, roomId });
 
         // Join socket room
@@ -368,7 +372,7 @@ io.on('connection', (socket) => {
             user: currentUser,
             members: room.getMembersList()
         });
-        console.log(`✅ ${userName} joined room: ${roomId} (UID: ${userId})`);
+        console.log(`✅ ${userName} joined room: ${roomId} (UID: ${persistentId})`);
     });
 
     // Handle messages
