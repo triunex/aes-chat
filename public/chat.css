@@ -1355,3 +1355,30 @@
     width: 100%;
     height: 100%;
 }
+
+.create-room-btn {
+    margin: 20px 20px 10px 20px;
+    padding: 12px;
+    background: var(--accent-primary);
+    color: white;
+    border: none;
+    border-radius: var(--radius-md);
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    transition: 0.2s;
+    box-shadow: 0 4px 12px rgba(0, 255, 157, 0.2);
+}
+
+.create-room-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(0, 255, 157, 0.4);
+}
+
+.create-room-btn svg {
+    width: 18px;
+    height: 18px;
+}

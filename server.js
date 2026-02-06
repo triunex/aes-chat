@@ -564,6 +564,26 @@ io.on('connection', (socket) => {
         socket.to(currentRoom).emit('canvas-stroke', data);
     });
 
+    // PQC Key Exchange Handshake
+    socket.on('handshake-init', (data) => {
+        if (!currentRoom) return;
+        // Broadcast public key to room, asking for the Session Key
+        socket.to(currentRoom).emit('handshake-request', {
+            senderId: socket.id,
+            pk: data.pk
+        });
+    });
+
+    socket.on('handshake-response', ({ targetId, ciphertext, encryptedKey }) => {
+        // Send the encapsulated Session Key back to the specific joiner
+        io.to(targetId).emit('handshake-complete', {
+            ciphertext,
+            encryptedKey
+        });
+    });
+
+    // Kick Member
+
     // Kick Member
     socket.on('kick-member', ({ targetId }) => {
         if (!currentRoom) return;

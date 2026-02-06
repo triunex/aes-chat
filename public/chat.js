@@ -6,6 +6,7 @@
 import { SpatialAudioEngine } from './modules/audio/spatial-engine.js';
 import { WebRTCManager } from './modules/network/webrtc-mesh.js';
 import { SecureWhiteboard } from './modules/canvas/whiteboard.js';
+import { HandshakeManager } from './modules/crypto/handshake.js';
 
 // Global Socket, defined in HTML script
 // const socket = io(); // We use this.socket inside class.
@@ -41,11 +42,9 @@ class AESChatApp {
                 return;
             }
 
-            // Derive room encryption key
-            if (window.AESEncryption) {
-                this.roomKey = await window.AESEncryption.deriveRoomKey(this.roomId);
-            } else {
-                console.error('Encryption module not loaded');
+            // PQC Integration: Key is now established via handshake after join
+            // We no longer deterministically derive it from Room ID.
+            if (!window.AESEncryption) {
                 this.showToast('Security Error: Encryption module failed to load', 'error');
                 return;
             }
@@ -174,7 +173,8 @@ class AESChatApp {
                 disappearingSetting.value = data.settings.disappearingMessages;
             }
 
-            this.showToast('Connected to encrypted room', 'success');
+            // PQC Handshake Flow
+            this.handleRoomJoin(data);
         });
 
         this.socket.on('message', (msg) => {
@@ -194,6 +194,13 @@ class AESChatApp {
         this.socket.on('user-left', (data) => {
             this.members.delete(data.user.id);
             this.updateMembersList();
+        });
+
+        // PQC Handshake Request
+        this.socket.on('handshake-request', (data) => {
+            if (this.handshakeManager) {
+                this.handshakeManager.handleHandshakeRequest(data);
+            }
         });
 
         this.socket.on('user-typing', (data) => {
@@ -255,6 +262,62 @@ class AESChatApp {
                 });
             }
         });
+    }
+
+    async handleRoomJoin(data) {
+        this.handshakeManager = new HandshakeManager(this.socket, this);
+
+        // 1. Try to load existing key for this session (Refresh resilience)
+        const storageKey = `aes-key-${this.roomId}`;
+        const storedKey = sessionStorage.getItem(storageKey);
+
+        if (storedKey) {
+            try {
+                this.roomKey = await window.AESEncryption.importKey(storedKey);
+                this.encryptionKey = this.roomKey;
+                this.showToast('Restored Secure Session', 'success');
+            } catch (e) {
+                console.error("Failed to restore key", e);
+                sessionStorage.removeItem(storageKey);
+            }
+        }
+
+        if (this.encryptionKey) {
+            // Already have key
+        } else {
+            // Handshake Logic
+            const amIAlone = data.members && data.members.length === 1;
+
+            if (amIAlone) {
+                this.roomKey = await window.AESEncryption.generateKey();
+                this.encryptionKey = this.roomKey;
+                this.isCreator = true;
+                this.showToast('Created new Quantum-Secure Room', 'success');
+
+                // Save
+                const k = await window.AESEncryption.exportKey(this.roomKey);
+                sessionStorage.setItem(storageKey, k);
+            } else {
+                try {
+                    this.showToast('Initiating Post-Quantum Handshake...', 'info');
+                    const result = await this.handshakeManager.initiateHandshake();
+                    this.encryptionKey = result.key;
+                    this.isCreator = result.isCreator;
+
+                    const k = await window.AESEncryption.exportKey(this.encryptionKey);
+                    sessionStorage.setItem(storageKey, k);
+
+                    if (this.isCreator) {
+                        this.showToast('No peers answered. Became Room Host.', 'warning');
+                    } else {
+                        this.showToast('Kyber-768 Handshake Successful', 'success');
+                    }
+                } catch (e) {
+                    console.error(e);
+                    this.showToast('Handshake Failed. Messages unreadable.', 'error');
+                }
+            }
+        }
     }
 
     initUIEvents() {
@@ -394,23 +457,50 @@ class AESChatApp {
         const content = input.value.trim();
         if (!content || !this.socket) return;
 
-        this.socket.emit('send-message', {
-            content: content,
-            type: 'text',
-            replyTo: this.replyingTo
-        });
+        if (!this.encryptionKey) {
+            this.showToast('Encryption Key not ready. Waiting for Handshake...', 'warning');
+            return;
+        }
 
-        input.value = '';
-        this.autoResizeTextarea(input);
-        const sendBtn = document.getElementById('sendBtn');
-        if (sendBtn) sendBtn.disabled = true;
-        this.socket.emit('typing-stop');
-        this.cancelReply();
+        try {
+            const encryptedContent = await window.AESEncryption.encrypt(content, this.encryptionKey);
+
+            this.socket.emit('send-message', {
+                content: encryptedContent,
+                type: 'text',
+                replyTo: this.replyingTo,
+                isEncrypted: true
+            });
+
+            input.value = '';
+            this.autoResizeTextarea(input);
+            const sendBtn = document.getElementById('sendBtn');
+            if (sendBtn) sendBtn.disabled = true;
+            this.socket.emit('typing-stop');
+            this.cancelReply();
+        } catch (error) {
+            console.error('Send failed:', error);
+            this.showToast('Encryption failed', 'error');
+        }
     }
 
-    addMessage(msg, animate = true) {
+    async addMessage(msg, animate = true) {
         const list = document.getElementById('messagesList');
         if (!list) return;
+
+        // PQC Decryption
+        if (msg.type === 'text' && msg.isEncrypted && msg.type !== 'system') {
+            try {
+                if (this.encryptionKey) {
+                    msg.content = await window.AESEncryption.decrypt(msg.content, this.encryptionKey);
+                } else {
+                    msg.content = '🔒 Encrypted (Key Missing)';
+                }
+            } catch (e) {
+                console.error(e);
+                msg.content = '⚠️ Decryption Failed';
+            }
+        }
 
         const isOwn = msg.senderId === this.socket?.id;
         const isSystem = msg.type === 'system';
@@ -896,6 +986,13 @@ class AESChatApp {
         navigator.clipboard.writeText(link).then(() => {
             this.showToast('Invite link copied!', 'success');
         });
+    }
+
+    createNewRoom() {
+        if (confirm('Create a new secure room? This will disconnect you from the current session.')) {
+            const roomId = 'aes-' + Math.random().toString(36).substring(2, 9) + Date.now().toString(36).substring(5);
+            window.location.href = `/?room=${roomId}`;
+        }
     }
 
     kickMember(userId, userName) {
