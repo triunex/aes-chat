@@ -4,6 +4,7 @@
  */
 
 import { SpatialAudioEngine } from './modules/audio/spatial-engine.js';
+import { WebRTCManager } from './modules/network/webrtc-mesh.js';
 
 // Global Socket, defined in HTML script
 // const socket = io(); // We use this.socket inside class.
@@ -970,54 +971,89 @@ class AESChatApp {
     }
 
     // Holo-Spatial Audio
-    toggleSpatialRadar() {
+    async toggleSpatialRadar() {
         const panel = document.getElementById('spatialRadarParams');
         if (panel) {
             const isHidden = panel.classList.contains('hidden');
             if (isHidden) {
                 panel.classList.remove('hidden');
                 if (!this.spatialEngine) {
-                    this.initSpatialAudio();
+                    await this.initSpatialAudio();
                 }
             } else {
                 panel.classList.add('hidden');
+                this.stopSpatialAudio();
             }
         }
     }
 
-    initSpatialAudio() {
+    async initSpatialAudio() {
         try {
+            // 1. Get Local Microphone
+            const stream = await navigator.mediaDevices.getUserMedia({
+                audio: {
+                    echoCancellation: true,
+                    noiseSuppression: true,
+                    autoGainControl: true
+                }
+            });
+            this.localVoiceStream = stream;
+
+            // 2. Init Engines
             this.spatialEngine = new SpatialAudioEngine();
             const container = document.getElementById('radarContainer');
-            if (container) {
-                this.spatialEngine.mountRadar(container);
+            if (container) this.spatialEngine.mountRadar(container);
 
-                // Add room members to radar (Visual Only for now)
-                this.members.forEach((member, id) => {
-                    if (id !== this.socket?.id) {
-                        // Create a silent dummy stream just to visualize the node
-                        const ctx = this.spatialEngine.ctx;
-                        const osc = ctx.createOscillator();
-                        const gain = ctx.createGain();
-                        gain.gain.value = 0; // Silent
-                        const dest = ctx.createMediaStreamDestination();
-                        osc.connect(gain);
-                        gain.connect(dest);
-                        osc.start();
+            // 3. Init WebRTC Mesh
+            this.webrtcManager = new WebRTCManager(
+                this.socket,
+                stream,
+                (peerId, remoteStream) => {
+                    // On Remote Stream Received -> Add to Spatial Audio
+                    console.log('Adding spatial source for', peerId);
+                    this.spatialEngine.addSource(peerId, remoteStream);
 
-                        this.spatialEngine.addSource(id, dest.stream);
-                        // Update color
-                        const node = this.spatialEngine.sources.get(id);
-                        if (node) node.color = member.color;
-                    }
-                });
+                    // Sync Color
+                    const member = this.members.get(peerId);
+                    const node = this.spatialEngine.sources.get(peerId);
+                    if (node && member) node.color = member.color;
+                },
+                (peerId) => {
+                    // On Disconnect
+                    this.spatialEngine.removeSource(peerId);
+                }
+            );
 
-                this.showToast('Holo-Space Activated. Drag users to position audio sources (Simulation Mode).', 'success');
-            }
+            // 4. Signal Presence
+            this.socket.emit('join-voice');
+            this.showToast('Holo-Space Active. Microphone Live.', 'success');
+
         } catch (e) {
             console.error('Spatial Audio Error:', e);
-            this.showToast('Failed to initialize Spatial Audio', 'error');
+            this.showToast('Failed to access microphone or initialize audio.', 'error');
+            // Close panel to recover
+            document.getElementById('spatialRadarParams')?.classList.add('hidden');
         }
+    }
+
+    stopSpatialAudio() {
+        if (this.webrtcManager) {
+            this.webrtcManager.cleanup();
+            this.webrtcManager = null;
+        }
+        if (this.localVoiceStream) {
+            this.localVoiceStream.getTracks().forEach(t => t.stop());
+            this.localVoiceStream = null;
+        }
+        if (this.spatialEngine) {
+            // Ideally close context if needed, but keeping it alive is fine
+            this.spatialEngine = null; // Garbage collect
+        }
+
+        if (this.socket) {
+            this.socket.emit('leave-voice');
+        }
+        this.showToast('Left Holo-Space.', 'info');
     }
 
     showToast(message, type = 'success') {

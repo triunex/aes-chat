@@ -539,6 +539,25 @@ io.on('connection', (socket) => {
         saveRooms();
     });
 
+    // WebRTC Signaling for Holo-Voice
+    socket.on('voice-signal', ({ targetId, signal }) => {
+        io.to(targetId).emit('voice-signal', {
+            senderId: socket.id,
+            signal: signal
+        });
+    });
+
+    socket.on('join-voice', () => {
+        if (!currentRoom) return;
+        // Tell everyone in room to prepare connections
+        socket.to(currentRoom).emit('user-joined-voice', { userId: socket.id });
+    });
+
+    socket.on('leave-voice', () => {
+        if (!currentRoom) return;
+        socket.to(currentRoom).emit('user-left-voice', { userId: socket.id });
+    });
+
     // Kick Member
     socket.on('kick-member', ({ targetId }) => {
         if (!currentRoom) return;
