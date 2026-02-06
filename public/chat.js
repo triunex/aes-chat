@@ -195,7 +195,7 @@ class AESChatApp {
 
     // Call Actions for UI
     async initiateSovereignCall(isVideo) {
-        const others = Array.from(this.members.values()).filter(m => m.id !== this.socket.id);
+        const others = Array.from(this.members.values()).filter(m => m.userId !== this.userId);
         if (others.length === 0) {
             this.showToast('No active peers for secure line.', 'error');
             return;
@@ -301,7 +301,7 @@ class AESChatApp {
     }
 
     setupSocketEvents() {
-        this.socket.on('room-joined', (data) => {
+        this.socket.on('room-joined', async (data) => {
             this.isConnected = true;
 
             const roomNameEl = document.getElementById('roomName');
@@ -313,16 +313,21 @@ class AESChatApp {
             // Update page title
             document.title = `${data.roomName} | AES Chat`;
 
-            // Update members
-            data.members.forEach(m => this.members.set(m.id, m));
-            this.updateMembersList();
-
             // Clear existing local state to prevent duplicates on reconnect
+            this.members.clear();
             this.messages = [];
             const list = document.getElementById('messagesList');
             if (list) list.innerHTML = '';
 
-            // Load messages
+            // Update members using persistent userId as key
+            data.members.forEach(m => this.members.set(m.userId, m));
+            this.updateMembersList();
+
+            // --- CRITICAL: PRIORITY SECURITY HANDSHAKE ---
+            // We must establish the key BEFORE rendering history messages to avoid decryption errors
+            await this.handleRoomJoin(data);
+
+            // Load history messages (Now they should decrypt)
             data.messages.forEach(msg => this.addMessage(msg, false));
             this.scrollToBottom();
 
@@ -331,27 +336,25 @@ class AESChatApp {
             if (disappearingSetting && data.settings.disappearingMessages) {
                 disappearingSetting.value = data.settings.disappearingMessages;
             }
-
-            // PQC Handshake Flow
-            this.handleRoomJoin(data);
         });
 
         this.socket.on('message', (msg) => {
             this.addMessage(msg, true);
 
             // Mark as read if not own message
-            if (msg.senderId !== this.socket.id && msg.type !== 'system') {
+            if (msg.userId !== this.userId && msg.type !== 'system') {
                 this.socket.emit('mark-read', { messageIds: [msg.id] });
             }
         });
 
         this.socket.on('user-joined', (data) => {
-            this.members.set(data.user.id, data.user);
+            // Use userId as key to prevent duplicates
+            this.members.set(data.user.userId, data.user);
             this.updateMembersList();
         });
 
         this.socket.on('user-left', (data) => {
-            this.members.delete(data.user.id);
+            this.members.delete(data.user.userId);
             this.updateMembersList();
         });
 
@@ -1132,7 +1135,7 @@ class AESChatApp {
 
         this.members.forEach((member, id) => {
             const isOnline = member.isOnline !== false;
-            const isMe = id === this.socket?.id;
+            const isMe = id === this.userId;
             const canKick = this.isCreator && !isMe;
 
             list.innerHTML += `

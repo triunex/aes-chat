@@ -346,8 +346,8 @@ io.on('connection', (socket) => {
             color: generateUserColor(userName)
         };
 
-        // Add user to room
-        room.addMember(socket.id, currentUser);
+        // Add user to room using persistent userId as key to prevent duplicates
+        room.addMember(userId, currentUser);
         users.set(socket.id, { ...currentUser, roomId });
 
         // Join socket room
@@ -368,6 +368,7 @@ io.on('connection', (socket) => {
             user: currentUser,
             members: room.getMembersList()
         });
+        console.log(`✅ ${userName} joined room: ${roomId} (UID: ${userId})`);
     });
 
     // Handle messages
@@ -684,13 +685,13 @@ io.on('connection', (socket) => {
         if (currentRoom && currentUser) {
             const room = rooms.get(currentRoom);
             if (room) {
-                room.removeMember(socket.id);
+                // Remove by persistent userId
+                room.removeMember(currentUser.userId);
 
                 io.to(currentRoom).emit('user-left', {
                     user: currentUser,
                     members: room.getMembersList()
                 });
-                // No more auto-delete - persist forever
             }
         }
 
