@@ -564,6 +564,16 @@ io.on('connection', (socket) => {
         socket.to(currentRoom).emit('canvas-stroke', data);
     });
 
+    socket.on('canvas-laser', (data) => {
+        if (!currentRoom) return;
+        socket.to(currentRoom).emit('canvas-laser', { ...data, senderId: socket.id });
+    });
+
+    socket.on('canvas-clear', () => {
+        if (!currentRoom) return;
+        socket.to(currentRoom).emit('canvas-clear');
+    });
+
     // PQC Key Exchange Handshake
     socket.on('handshake-init', (data) => {
         if (!currentRoom) return;

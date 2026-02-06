@@ -1072,31 +1072,19 @@ class AESChatApp {
     toggleWhiteboard() {
         const wb = document.getElementById('whiteboardContainer');
         if (wb) {
-            if (wb.classList.contains('hidden')) {
+            const isHidden = wb.classList.contains('hidden');
+            if (isHidden) {
                 wb.classList.remove('hidden');
                 if (!this.whiteboard) {
-                    this.whiteboard = new SecureWhiteboard(this.socket, null, 'canvasMount');
+                    this.whiteboard = new SecureWhiteboard(this.socket, this.encryptionKey, 'canvasMount');
                 }
+                this.whiteboard.isActive = true;
+                this.showToast('Collaborative Canvas Active', 'success');
             } else {
                 wb.classList.add('hidden');
+                if (this.whiteboard) this.whiteboard.isActive = false;
             }
         }
-    }
-
-    setWhiteboardTool(tool) {
-        if (this.whiteboard) {
-            this.whiteboard.tool = tool;
-            document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
-            document.querySelector(`[data-tool="${tool}"]`)?.classList.add('active');
-        }
-    }
-
-    setWhiteboardColor(color) {
-        if (this.whiteboard) this.whiteboard.color = color;
-    }
-
-    setWhiteboardSize(size) {
-        if (this.whiteboard) this.whiteboard.lineWidth = size;
     }
 
     broadcastCanvasStroke(data) {

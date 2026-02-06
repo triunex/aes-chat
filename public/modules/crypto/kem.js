@@ -15,19 +15,19 @@ export class Kyber768 {
     static get algorithm() { return "Kyber-768-KEM-Draft"; }
 
     /**
-     * Generates a Keypair (Uses Real Kyber if available, else Fallback)
+     * Generates a Keypair (Uses Standard ML-KEM if available, else Fallback)
      * @returns {Promise<{pk: ArrayBuffer, sk: any}>}
      */
     static async generateKeyPair() {
-        if (window.Kyber) {
+        if (window.mlkem) {
             try {
-                console.log('[PQC] Using Real Crystals-Kyber Library');
+                console.log('[PQC] Using NIST ML-KEM Engine');
                 // Assuming standard API: pk, sk = Kyber.KeyGen()
                 // You might need to adjust based on the specific library export
-                const keys = await window.Kyber.KeyGen768();
+                const keys = await window.mlkem.generateKeyPair768();
                 return { pk: keys.pk.buffer, sk: keys.sk.buffer }; // Ensure ArrayBuffer
             } catch (e) {
-                console.warn('[PQC] Real Kyber failed, using ECDH Shim', e);
+                console.warn('[PQC] ML-KEM keygen failed, using ECDH Shim', e);
             }
         }
 
@@ -49,15 +49,15 @@ export class Kyber768 {
      * @returns {Promise<{ciphertext: ArrayBuffer, sharedSecret: ArrayBuffer}>}
      */
     static async encapsulate(recipientPublicKey) {
-        if (window.Kyber) {
+        if (window.mlkem) {
             try {
                 const pkArray = new Uint8Array(recipientPublicKey);
-                const result = await window.Kyber.Encapsulate768(pkArray);
+                const result = await window.mlkem.encapsulate768(pkArray);
                 return {
                     ciphertext: result.ciphertext.buffer,
                     sharedSecret: result.sharedSecret.buffer
                 };
-            } catch (e) { console.warn('Kyber Encaps failed', e); }
+            } catch (e) { console.warn('ML-KEM Encaps failed', e); }
         }
 
         // 1. Import Recipient PK
@@ -101,11 +101,13 @@ export class Kyber768 {
      * @returns {Promise<ArrayBuffer>} Shared Secret
      */
     static async decapsulate(ciphertext, privateKey) {
-        if (window.Kyber) {
-            const skArray = new Uint8Array(privateKey);
-            const ctArray = new Uint8Array(ciphertext);
-            const sharedSecret = await window.Kyber.Decapsulate768(ctArray, skArray);
-            return sharedSecret.buffer;
+        if (window.mlkem) {
+            try {
+                const skArray = new Uint8Array(privateKey);
+                const ctArray = new Uint8Array(ciphertext);
+                const sharedSecret = await window.mlkem.decapsulate768(ctArray, skArray);
+                return sharedSecret.buffer;
+            } catch (e) { console.warn('ML-KEM Decaps failed', e); }
         }
 
         // 1. Import Ephemeral PK (from ciphertext)
