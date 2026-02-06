@@ -598,6 +598,39 @@ io.on('connection', (socket) => {
         });
     });
 
+    // --- Sovereign Call System (Global Range) ---
+    socket.on('call-invite', ({ targetId, isVideo }) => {
+        if (!currentRoom || !currentUser) return;
+        io.to(targetId).emit('call-invite', {
+            senderId: socket.id,
+            senderName: currentUser.name,
+            isVideo: isVideo
+        });
+    });
+
+    socket.on('call-accept', ({ targetId }) => {
+        io.to(targetId).emit('call-accept', { senderId: socket.id });
+    });
+
+    socket.on('call-reject', ({ targetId }) => {
+        io.to(targetId).emit('call-reject', { senderId: socket.id });
+    });
+
+    socket.on('call-signal', ({ targetId, signal }) => {
+        io.to(targetId).emit('call-signal', {
+            senderId: socket.id,
+            signal: signal
+        });
+    });
+
+    socket.on('call-end', ({ targetId }) => {
+        io.to(targetId).emit('call-end', { senderId: socket.id });
+    });
+
+    socket.on('call-media-handshake', (data) => {
+        io.to(data.targetId).emit('call-media-handshake', data);
+    });
+
     // Kick Member
 
     // Kick Member

@@ -7,6 +7,7 @@ import { SpatialAudioEngine } from './modules/audio/spatial-engine.js';
 import { WebRTCManager } from './modules/network/webrtc-mesh.js';
 import { SecureWhiteboard } from './modules/canvas/whiteboard.js';
 import { HandshakeManager } from './modules/crypto/handshake.js';
+import { SovereignCallManager } from './modules/network/sovereign-calls.js';
 
 // Global Socket, defined in HTML script
 // const socket = io(); // We use this.socket inside class.
@@ -27,6 +28,7 @@ class AESChatApp {
         this.recordingStartTime = null;
         this.isConnected = false;
         this.isCreator = false;
+        this.callManager = null;
 
         // Persistent User ID for alignment
         this.userId = localStorage.getItem('aes-persistent-uid');
@@ -145,6 +147,10 @@ class AESChatApp {
         this.setupSocketEvents();
         this.initUIEvents();
 
+        // Initialize Sovereign Call Manager
+        this.callManager = new SovereignCallManager(this.socket);
+        this.setupCallHandlers();
+
         // Join the room
         this.socket.emit('join-room', {
             roomId: this.roomId,
@@ -152,6 +158,82 @@ class AESChatApp {
             userName: this.currentUser.name,
             userAvatar: this.currentUser.avatar
         });
+    }
+
+    setupCallHandlers() {
+        if (!this.callManager) return;
+
+        // Remote/Local Stream Updates
+        this.callManager.onStreamUpdate = (stream, isLocal) => {
+            const videoId = isLocal ? 'localVideo' : 'remoteVideo';
+            const videoEl = document.getElementById(videoId);
+            if (videoEl) {
+                videoEl.srcObject = stream;
+                document.getElementById('callOverlay')?.classList.remove('hidden');
+            }
+        };
+
+        this.callManager.onCallClosed = () => {
+            document.getElementById('callOverlay')?.classList.add('hidden');
+            document.getElementById('incomingCallModal')?.classList.add('hidden');
+            this.showToast('Secure Session Closed. Memory Shredded.', 'info');
+        };
+
+        window.addEventListener('incoming-call', (e) => {
+            const { senderName, isVideo } = e.detail;
+            document.getElementById('incomingCallName').textContent = senderName.toUpperCase();
+            document.getElementById('incomingCallModal')?.classList.remove('hidden');
+        });
+    }
+
+    // Call Actions for UI
+    async initiateSovereignCall(isVideo) {
+        const others = Array.from(this.members.values()).filter(m => m.id !== this.socket.id);
+        if (others.length === 0) {
+            this.showToast('No active peers for secure line.', 'error');
+            return;
+        }
+
+        try {
+            await this.callManager.startCall(others[0].id, isVideo);
+            this.showToast('Negotiating Sovereign Line...', 'info');
+        } catch (err) {
+            this.showToast(err.message, 'error');
+        }
+    }
+
+    acceptSovereignCall() {
+        this.callManager.acceptCall(true);
+        document.getElementById('incomingCallModal')?.classList.add('hidden');
+    }
+
+    rejectSovereignCall() {
+        this.socket.emit('call-reject', { targetId: this.callManager.targetId });
+        document.getElementById('incomingCallModal')?.classList.add('hidden');
+    }
+
+    endSovereignCall() {
+        this.callManager.endCall(true);
+    }
+
+    toggleCallMic() {
+        if (!this.callManager || !this.callManager.localStream) return;
+        const audioTrack = this.callManager.localStream.getAudioTracks()[0];
+        if (audioTrack) {
+            audioTrack.enabled = !audioTrack.enabled;
+            const btn = document.getElementById('callToggleMic');
+            if (btn) btn.innerHTML = `<i class="fas fa-microphone${audioTrack.enabled ? '' : '-slash'}"></i>`;
+        }
+    }
+
+    toggleCallVideo() {
+        if (!this.callManager || !this.callManager.localStream) return;
+        const videoTrack = this.callManager.localStream.getVideoTracks()[0];
+        if (videoTrack) {
+            videoTrack.enabled = !videoTrack.enabled;
+            const btn = document.getElementById('callToggleVideo');
+            if (btn) btn.innerHTML = `<i class="fas fa-video${videoTrack.enabled ? '' : '-slash'}"></i>`;
+        }
     }
 
     setupSocketEvents() {

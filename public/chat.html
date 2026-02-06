@@ -190,33 +190,80 @@
                     <div class="typing-indicator" id="typingIndicator"></div>
                 </div>
                 <div class="header-actions">
+                    <button class="icon-btn" onclick="chatApp.initiateSovereignCall(true)"
+                        title="Secure Video Call (PQC)">
+                        <i class="fas fa-video"></i>
+                    </button>
+                    <button class="icon-btn" onclick="chatApp.initiateSovereignCall(false)"
+                        title="Secure Audio Call (PQC)">
+                        <i class="fas fa-phone"></i>
+                    </button>
                     <button class="icon-btn" onclick="chatApp.toggleWhiteboard()" title="Encrypted Whiteboard">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                            stroke-width="2">
-                            <path d="M12 19l7-7 3 3-7 7-3-3z" />
-                            <path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z" />
-                            <path d="M2 2l7.586 7.586" />
-                            <circle cx="11" cy="11" r="2" />
-                        </svg>
+                        <i class="fas fa-file-signature"></i>
                     </button>
                     <button class="icon-btn" onclick="chatApp.toggleSpatialRadar()" title="Enter Holo-Space">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                            stroke-width="2">
-                            <path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z" />
-                            <path d="M2 12h20" />
-                            <path
-                                d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
-                        </svg>
+                        <i class="fas fa-border-all"></i>
                     </button>
                     <button class="icon-btn" id="searchBtn" title="Search">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                            stroke-width="2">
-                            <circle cx="11" cy="11" r="8" />
-                            <path d="M21 21l-4.35-4.35" />
-                        </svg>
+                        <i class="fas fa-search"></i>
                     </button>
                 </div>
             </header>
+
+            <!-- Sovereign Call Overlay (The Digital SCIF) -->
+            <div id="callOverlay" class="hidden">
+                <div class="scif-status-bar">
+                    <div class="status-left">
+                        <span class="status-dot pulse"></span>
+                        <span class="scif-label">SOVEREIGN LINE ACTIVE</span>
+                    </div>
+                    <div class="status-right">
+                        <span class="enc-label"><i class="fas fa-shield-halved"></i> AES-256-PQC</span>
+                    </div>
+                </div>
+
+                <div class="video-grid">
+                    <div class="video-container remote">
+                        <video id="remoteVideo" autoplay playsinline></video>
+                        <div class="video-label" id="remoteName">PEER</div>
+                    </div>
+                    <div class="video-container local">
+                        <video id="localVideo" autoplay playsinline muted></video>
+                        <div class="video-label">YOU</div>
+                    </div>
+                </div>
+
+                <div class="call-controls">
+                    <button class="call-btn" id="callToggleMic" onclick="chatApp.toggleCallMic()">
+                        <i class="fas fa-microphone"></i>
+                    </button>
+                    <button class="call-btn" id="callToggleVideo" onclick="chatApp.toggleCallVideo()">
+                        <i class="fas fa-video"></i>
+                    </button>
+                    <button class="call-btn danger" onclick="chatApp.endSovereignCall()">
+                        <i class="fas fa-phone-slash"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Incoming Call Modal -->
+            <div id="incomingCallModal" class="modal-overlay hidden">
+                <div class="modal-card call-card">
+                    <div class="call-avatar">
+                        <i class="fas fa-user-shield"></i>
+                    </div>
+                    <h2 id="incomingCallName">SECURE LINE</h2>
+                    <p>QUANTUM-RESISTANT HANDSHAKE PENDING...</p>
+                    <div class="call-actions">
+                        <button class="call-action accept" onclick="chatApp.acceptSovereignCall()">
+                            <i class="fas fa-phone"></i>
+                        </button>
+                        <button class="call-action reject" onclick="chatApp.rejectSovereignCall()">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
 
             <!-- Search Panel -->
             <div class="search-panel hidden" id="searchPanel">
