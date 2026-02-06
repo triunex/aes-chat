@@ -163,6 +163,11 @@ class AESChatApp {
             data.members.forEach(m => this.members.set(m.id, m));
             this.updateMembersList();
 
+            // Clear existing local state to prevent duplicates on reconnect
+            this.messages = [];
+            const list = document.getElementById('messagesList');
+            if (list) list.innerHTML = '';
+
             // Load messages
             data.messages.forEach(msg => this.addMessage(msg, false));
             this.scrollToBottom();
@@ -487,6 +492,12 @@ class AESChatApp {
     async addMessage(msg, animate = true) {
         const list = document.getElementById('messagesList');
         if (!list) return;
+
+        // Prevent duplicate messages
+        if (this.messages.some(m => m.id === msg.id)) {
+            // Already exists, just update if needed (e.g. edited state)
+            return;
+        }
 
         // PQC Decryption
         if (msg.type === 'text' && msg.isEncrypted && msg.type !== 'system') {
