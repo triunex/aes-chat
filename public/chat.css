@@ -1634,8 +1634,69 @@ h2,
     }
 }
 
+@media (max-width: 768px) {
+    #callOverlay {
+        padding: 10px;
+    }
+
+    .scif-status-bar {
+        padding: 8px;
+        flex-direction: column;
+        gap: 10px;
+        height: auto;
+    }
+
+    .status-center {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .video-grid {
+        grid-template-rows: 1fr;
+        /* Remote takes full grid space on mobile */
+        grid-template-columns: 1fr;
+        height: calc(100% - 140px);
+    }
+
+    .video-container.local {
+        width: 100px;
+        height: 150px;
+        bottom: 120px;
+        /* Floating above controls on mobile */
+        top: auto;
+        right: 15px;
+        border-radius: 12px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8);
+        border: 1px solid var(--accent-primary);
+    }
+
+    .call-controls {
+        gap: 12px;
+        padding: 15px 0;
+        position: absolute;
+        bottom: 15px;
+        left: 0;
+        right: 0;
+        background: rgba(6, 6, 8, 0.95);
+        backdrop-filter: blur(10px);
+        width: auto;
+        margin: 0;
+    }
+
+    .call-btn {
+        width: 50px;
+        height: 50px;
+        font-size: 18px;
+    }
+
+    .video-label {
+        font-size: 8px;
+        padding: 2px 6px;
+    }
+}
+
 /* Laptop Height Fix (Short screens/Standard Laptops) */
-@media (max-height: 800px) {
+@media (max-height: 800px) and (min-width: 769px) {
     #callOverlay {
         padding: 12px;
     }
