@@ -28,6 +28,13 @@ class AESChatApp {
         this.isConnected = false;
         this.isCreator = false;
 
+        // Persistent User ID for alignment
+        this.userId = localStorage.getItem('aes-persistent-uid');
+        if (!this.userId) {
+            this.userId = 'u-' + Math.random().toString(36).substring(2, 11);
+            localStorage.setItem('aes-persistent-uid', this.userId);
+        }
+
         this.init();
     }
 
@@ -141,6 +148,7 @@ class AESChatApp {
         // Join the room
         this.socket.emit('join-room', {
             roomId: this.roomId,
+            userId: this.userId, // Send persistent ID
             userName: this.currentUser.name,
             userAvatar: this.currentUser.avatar
         });
@@ -472,6 +480,7 @@ class AESChatApp {
 
             this.socket.emit('send-message', {
                 content: encryptedContent,
+                userId: this.userId, // Include persistent ID
                 type: 'text',
                 replyTo: this.replyingTo,
                 isEncrypted: true
@@ -513,7 +522,7 @@ class AESChatApp {
             }
         }
 
-        const isOwn = msg.senderId === this.socket?.id;
+        const isOwn = msg.userId === this.userId;
         const isSystem = msg.type === 'system';
 
         const messageEl = document.createElement('div');
@@ -868,6 +877,7 @@ class AESChatApp {
             reader.onload = () => {
                 if (this.socket) {
                     this.socket.emit('voice-message', {
+                        userId: this.userId,
                         audioData: reader.result,
                         duration: duration,
                         waveform: this.generateRandomWaveform()
@@ -934,6 +944,7 @@ class AESChatApp {
                 if (data.success && this.socket) {
                     const type = file.type.startsWith('image/') ? 'image' : 'file';
                     this.socket.emit('send-message', {
+                        userId: this.userId,
                         content: file.name,
                         type: type,
                         fileData: {

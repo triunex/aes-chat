@@ -264,6 +264,7 @@ class Message {
         this.disappearAt = data.disappearAt || null;
         this.fileData = data.fileData || null;
         this.isEncrypted = data.isEncrypted || false;
+        this.userId = data.userId || null;
     }
 }
 
@@ -328,7 +329,7 @@ io.on('connection', (socket) => {
     let currentUser = null;
 
     // Join room
-    socket.on('join-room', ({ roomId, userName, userAvatar }) => {
+    socket.on('join-room', ({ roomId, userId, userName, userAvatar }) => {
         // Create room if doesn't exist (for direct link access)
         if (!rooms.has(roomId)) {
             const room = new Room(roomId, null, userName);
@@ -339,6 +340,7 @@ io.on('connection', (socket) => {
         currentRoom = roomId;
         currentUser = {
             id: socket.id,
+            userId: userId, // Store persistent ID
             name: userName,
             avatar: userAvatar,
             color: generateUserColor(userName)
@@ -382,6 +384,7 @@ io.on('connection', (socket) => {
             senderAvatar: currentUser.avatar,
             content: data.content,
             type: data.type || 'text',
+            userId: data.userId || currentUser.userId, // Use provided ID or session ID
             replyTo: data.replyTo,
             fileData: data.fileData,
             isEncrypted: data.isEncrypted,
@@ -525,6 +528,7 @@ io.on('connection', (socket) => {
         const message = new Message({
             roomId: currentRoom,
             senderId: socket.id,
+            userId: data.userId || currentUser.userId,
             senderName: currentUser.name,
             senderAvatar: currentUser.avatar,
             content: 'Voice message',
