@@ -608,7 +608,7 @@ class AESChatApp {
     showQuickReactions(messageId) {
         const popup = document.createElement('div');
         popup.className = 'quick-reactions';
-        popup.style.cssText = 'position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 24px; padding: 8px 12px; display: flex; gap: 4px; z-index: 200; box-shadow: var(--shadow-lg);';
+        popup.style.cssText = 'position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 24px; padding: 12px; display: flex; gap: 8px; z-index: 9999; box-shadow: var(--shadow-lg); backdrop-filter: blur(10px);';
 
         this.emojis.forEach(e => {
             const btn = document.createElement('button');
@@ -693,7 +693,10 @@ class AESChatApp {
     // Voice Recording
     async toggleVoiceRecording() {
         if (this.isRecording) {
-            this.stopRecording();
+            this.cancelRecording(); // Default tap is cancel/stop without sending? No, usually toggle means stop. 
+            // But here UI has specific send button. 
+            // If user clicks mic again while recording, let's treat it as cancel/stop.
+            this.cancelRecording();
         } else {
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -703,12 +706,10 @@ class AESChatApp {
                 this.recordingStartTime = Date.now();
 
                 this.mediaRecorder.ondataavailable = (e) => {
-                    this.audioChunks.push(e.data);
+                    if (e.data.size > 0) this.audioChunks.push(e.data);
                 };
 
-                this.mediaRecorder.onstop = () => {
-                    stream.getTracks().forEach(t => t.stop());
-                };
+                // We don't define onstop here anymore, we handle it in finish
 
                 this.mediaRecorder.start();
 
@@ -722,15 +723,19 @@ class AESChatApp {
 
                 this.updateRecordingTime();
             } catch (err) {
-                this.showToast('Microphone access denied', 'error');
+                console.error(err);
+                this.showToast('Microphone access denied. Please ensure you are on HTTPS.', 'error');
             }
         }
     }
 
     stopRecording() {
+        // This is internal helper to stop stream
         if (this.mediaRecorder && this.isRecording) {
             this.mediaRecorder.stop();
+            this.mediaRecorder.stream.getTracks().forEach(t => t.stop());
             this.isRecording = false;
+
             const voiceBtn = document.getElementById('voiceBtn');
             if (voiceBtn) voiceBtn.classList.remove('recording');
         }
@@ -739,31 +744,44 @@ class AESChatApp {
     cancelRecording() {
         this.stopRecording();
         this.audioChunks = [];
+        this.resetVoiceUI();
+    }
+
+    sendVoiceMessage() {
+        if (!this.mediaRecorder || !this.isRecording) return;
+
+        // Define what happens when it stops
+        this.mediaRecorder.onstop = () => {
+            const duration = (Date.now() - this.recordingStartTime) / 1000;
+            const audioBlob = new Blob(this.audioChunks, { type: 'audio/webm' });
+
+            // Convert to Base64
+            const reader = new FileReader();
+            reader.onload = () => {
+                if (this.socket) {
+                    this.socket.emit('voice-message', {
+                        audioData: reader.result,
+                        duration: duration,
+                        waveform: this.generateRandomWaveform()
+                    });
+                }
+            };
+            reader.readAsDataURL(audioBlob);
+            this.audioChunks = []; // Clear buffer
+        };
+
+        // Trigger stop, which fires the event above
+        this.stopRecording();
+        this.resetVoiceUI();
+    }
+
+    resetVoiceUI() {
         const voiceRecording = document.getElementById('voiceRecording');
         const inputArea = document.querySelector('.input-area');
         if (voiceRecording) voiceRecording.classList.add('hidden');
         if (inputArea) inputArea.style.display = 'flex';
-    }
-
-    async sendVoiceMessage() {
-        this.stopRecording();
-
-        const duration = (Date.now() - this.recordingStartTime) / 1000;
-        const audioBlob = new Blob(this.audioChunks, { type: 'audio/webm' });
-
-        const reader = new FileReader();
-        reader.onload = () => {
-            if (this.socket) {
-                this.socket.emit('voice-message', {
-                    audioData: reader.result,
-                    duration: duration,
-                    waveform: this.generateRandomWaveform()
-                });
-            }
-        };
-        reader.readAsDataURL(audioBlob);
-
-        this.cancelRecording();
+        // Remove recursive timeout if any
+        this.isRecording = false;
     }
 
     updateRecordingTime() {
