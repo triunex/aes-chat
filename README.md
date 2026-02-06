@@ -13,7 +13,14 @@ The system features a hybrid persistence layer, utilizing **Google Firestore** f
 
 ---
 
-## 2. System Architecture
+## 2. Interface Design
+
+![Secure Terminal Interface](screenshots/demo.png)
+*Figure 1: High-contrast, dark-mode interface designed for long-session ergonomic comfort and immediate status recognition.*
+
+---
+
+## 3. System Architecture
 
 The application follows a client-server topology where the server facilitates WebSocket connections (via Socket.io) but does not participate in the cryptographic handshake. Keys are derived deterministically client-side based on Room Entropy.
 
@@ -36,7 +43,7 @@ graph TD
     end
 ```
 
-### 2.1 Technology Stack
+### 3.1 Technology Stack
 *   **Runtime Environment**: Node.js (v18+)
 *   **Transport Protocol**: WebSocket (Socket.io) with TCP reliability.
 *   **Cryptography**: Native Browser Web Crypto API (SubtleCrypto).
@@ -45,23 +52,23 @@ graph TD
 
 ---
 
-## 3. Cryptographic Implementation
+## 4. Cryptographic Implementation
 
 The security model assumes the server is honest-but-curious. All confidentiality and integrity guarantees are enforced by the client.
 
-### 3.1 Algorithm Specifications
+### 4.1 Algorithm Specifications
 *   **Primitive**: Advanced Encryption Standard (AES)
 *   **Mode**: Galois/Counter Mode (GCM)
 *   **Key Size**: 256-bit
 *   **Initialization Vector (IV)**: 12-byte (96-bit) random nonce generated per message.
 
-### 3.2 Key Derivation Function (KDF)
+### 4.2 Key Derivation Function (KDF)
 Room keys are derived using a deterministic hash of the Room ID.
 *   **Input**: `RoomID + "-aes-chat-secure-key"`
 *   **Algorithm**: SHA-256
 *   **Output**: 256-bit raw key material imported as `AES-GCM` key.
 
-### 3.3 Message Packet Structure
+### 4.3 Message Packet Structure
 Each transmitted packet contains:
 1.  **Ciphertext**: The encrypted message body.
 2.  **IV**: The 12-byte nonce required for decryption (sent in plaintext, as it is public).
@@ -69,15 +76,15 @@ Each transmitted packet contains:
 
 ---
 
-## 4. Computational Security Analysis
+## 5. Computational Security Analysis
 
 The security of AES-256 relies on the computational infeasibility of exhaustive key search (brute-force attack).
 
-### 4.1 Key Space
+### 5.1 Key Space
 An AES-256 key has a length of 256 bits, resulting in a key space of:
 $$2^{256} \approx 1.1579 \times 10^{77}$$
 
-### 4.2 Brute Force Feasibility
+### 5.2 Brute Force Feasibility
 To contextualize the magnitude of this number, consider a theoretical attack using the combined processing power of every supercomputer on Earth.
 
 *   **Current Global Computing Power**: Approximately $10^{20}$ FLOPS (Floating Point Operations Per Second) (Optimistic estimation of all Top500 supercomputers combined).
@@ -97,9 +104,9 @@ Thus, breaking AES-256 would take approximately **$2.6 \times 10^{39}$ times the
 
 ---
 
-## 5. Deployment
+## 6. Deployment
 
-### 5.1 Local Development
+### 6.1 Local Development
 1.  **Clone Repository**:
     ```bash
     git clone https://github.com/triunex/aes-chat.git
@@ -116,7 +123,7 @@ Thus, breaking AES-256 would take approximately **$2.6 \times 10^{39}$ times the
     *   The server will default to local JSON persistence in `data/rooms.json`.
     *   Access via `http://localhost:3000`.
 
-### 5.2 Cloud Deployment (Render.com)
+### 6.2 Cloud Deployment (Render.com)
 The application is optimized for Render.com's infrastructure.
 
 1.  **Create Web Service**: Connect your GitHub repository.
@@ -128,7 +135,7 @@ The application is optimized for Render.com's infrastructure.
 
 ---
 
-## 6. Features & Capabilities
+## 7. Features & Capabilities
 
 *   **Zero-Knowledge Architecture**: Server cannot read messages.
 *   **Volatile & Persistent Modes**: Hybrid storage handles both ephemeral sessions and long-term history.
@@ -138,7 +145,7 @@ The application is optimized for Render.com's infrastructure.
 
 ---
 
-## 7. License
+## 8. License
 This project is licensed under the **MIT License**.
 
 © 2026 AES Chat Project. Developed for secure communication research.
