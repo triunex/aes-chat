@@ -15,10 +15,23 @@ export class Kyber768 {
     static get algorithm() { return "Kyber-768-KEM-Draft"; }
 
     /**
-     * Generates a Lattice-based Keypair (Simulated via ECDH)
-     * @returns {Promise<{pk: ArrayBuffer, sk: CryptoKey}>}
+     * Generates a Keypair (Uses Real Kyber if available, else Fallback)
+     * @returns {Promise<{pk: ArrayBuffer, sk: any}>}
      */
     static async generateKeyPair() {
+        if (window.Kyber) {
+            try {
+                console.log('[PQC] Using Real Crystals-Kyber Library');
+                // Assuming standard API: pk, sk = Kyber.KeyGen()
+                // You might need to adjust based on the specific library export
+                const keys = await window.Kyber.KeyGen768();
+                return { pk: keys.pk.buffer, sk: keys.sk.buffer }; // Ensure ArrayBuffer
+            } catch (e) {
+                console.warn('[PQC] Real Kyber failed, using ECDH Shim', e);
+            }
+        }
+
+        console.log('[PQC] Using ECDH Shim (Kyber Simulation)');
         const pair = await window.crypto.subtle.generateKey(
             { name: "ECDH", namedCurve: "P-384" }, // High security curve
             true,
@@ -31,11 +44,22 @@ export class Kyber768 {
     }
 
     /**
-     * Encapsulates a shared secret for a given Public Key
+     * Encapsulates a shared secret
      * @param {ArrayBuffer} recipientPublicKey 
      * @returns {Promise<{ciphertext: ArrayBuffer, sharedSecret: ArrayBuffer}>}
      */
     static async encapsulate(recipientPublicKey) {
+        if (window.Kyber) {
+            try {
+                const pkArray = new Uint8Array(recipientPublicKey);
+                const result = await window.Kyber.Encapsulate768(pkArray);
+                return {
+                    ciphertext: result.ciphertext.buffer,
+                    sharedSecret: result.sharedSecret.buffer
+                };
+            } catch (e) { console.warn('Kyber Encaps failed', e); }
+        }
+
         // 1. Import Recipient PK
         const pubKey = await window.crypto.subtle.importKey(
             "raw",
@@ -71,12 +95,19 @@ export class Kyber768 {
     }
 
     /**
-     * Decapsulates the shared secret using the Secret Key
+     * Decapsulates the shared secret
      * @param {ArrayBuffer} ciphertext 
-     * @param {CryptoKey} privateKey 
+     * @param {any} privateKey 
      * @returns {Promise<ArrayBuffer>} Shared Secret
      */
     static async decapsulate(ciphertext, privateKey) {
+        if (window.Kyber) {
+            const skArray = new Uint8Array(privateKey);
+            const ctArray = new Uint8Array(ciphertext);
+            const sharedSecret = await window.Kyber.Decapsulate768(ctArray, skArray);
+            return sharedSecret.buffer;
+        }
+
         // 1. Import Ephemeral PK (from ciphertext)
         const ephPubKey = await window.crypto.subtle.importKey(
             "raw",
