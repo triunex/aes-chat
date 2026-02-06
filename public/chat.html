@@ -226,6 +226,16 @@
                     <div class="video-container remote">
                         <video id="remoteVideo" autoplay playsinline></video>
                         <div class="video-label" id="remoteName">PEER</div>
+
+                        <!-- Call Stats Panel (Intel Overlay) -->
+                        <div id="callStatsPanel" class="stats-panel hidden">
+                            <div class="stat-item"><span class="stat-lab">LATENCY:</span> <span
+                                    class="stat-val">--ms</span></div>
+                            <div class="stat-item"><span class="stat-lab">RATE:</span> <span
+                                    class="stat-val">--fps</span></div>
+                            <div class="stat-item"><span class="stat-lab">BYTERATE:</span> <span class="stat-val">--
+                                    Mbps</span></div>
+                        </div>
                     </div>
                     <div class="video-container local">
                         <video id="localVideo" autoplay playsinline muted></video>
@@ -239,6 +249,14 @@
                     </button>
                     <button class="call-btn" id="callToggleVideo" onclick="chatApp.toggleCallVideo()">
                         <i class="fas fa-video"></i>
+                    </button>
+                    <button class="call-btn" id="callToggleScreen" onclick="chatApp.toggleScreenShare()"
+                        title="Sovereign Screen Share">
+                        <i class="fas fa-desktop"></i>
+                    </button>
+                    <button class="call-btn" id="callToggleStats" onclick="chatApp.toggleCallStats()"
+                        title="Call Telemetry">
+                        <i class="fas fa-microchip"></i>
                     </button>
                     <button class="call-btn danger" onclick="chatApp.endSovereignCall()">
                         <i class="fas fa-phone-slash"></i>

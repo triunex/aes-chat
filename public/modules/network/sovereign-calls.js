@@ -128,14 +128,10 @@ export class SovereignCallManager {
         }
     }
 
-    async handleInvite(data) {
-        // UI should show the incoming call popup
-        this.targetId = data.senderId;
-        // This is handled by chatApp.js calling accept/reject
-        window.dispatchEvent(new CustomEvent('incoming-call', { detail: data }));
-    }
+    async acceptCall() {
+        // We now expect this.incomingCallData to be set or passed
+        const isVideo = this.lastInvite?.isVideo || false;
 
-    async acceptCall(isVideo = true) {
         try {
             this.localStream = await navigator.mediaDevices.getUserMedia({
                 audio: true,
@@ -146,7 +142,7 @@ export class SovereignCallManager {
 
             this.socket.emit('call-accept', { targetId: this.targetId });
 
-            // Start PQC Key Exchange before establishing WebRTC
+            // IMPORTANT: Handshake must complete BEFORE initPeerConnection
             await this.negotiateMediaKey();
             await this.initPeerConnection();
         } catch (err) {
@@ -167,7 +163,6 @@ export class SovereignCallManager {
         console.log('[SME] Negotiating PQC Media Key...');
 
         if (this.isInitiator) {
-            // Generating Kyber-768 pair
             const keyPair = await Kyber768.generateKeyPair();
 
             return new Promise((resolve) => {
@@ -177,7 +172,7 @@ export class SovereignCallManager {
 
                     const sharedSecret = await Kyber768.decapsulate(data.mediaSecret.ciphertext, keyPair.sk);
                     this.mediaKey = await this.importKey(sharedSecret);
-                    console.log('[SME] Secure Media Key Established (Recipient).');
+                    console.log('[SME] Secure Media Key Established (Initiator).');
                     resolve();
                 };
 
@@ -190,15 +185,27 @@ export class SovereignCallManager {
                 });
             });
         } else {
-            // Wait for PK from initiator
-            // This is slightly complex due to async flow, handled in handleSignal
+            // Recipient: Wait for handleSignal to capture mediaPk
+            if (this.mediaKey) return; // Already established via handleSignal race?
+
+            return new Promise((resolve) => {
+                const checkKey = setInterval(() => {
+                    if (this.mediaKey) {
+                        clearInterval(checkKey);
+                        console.log('[SME] Secure Media Key Established (Recipient).');
+                        resolve();
+                    }
+                }, 100);
+            });
         }
     }
 
     async initPeerConnection() {
+        if (this.peerConnection) return;
+
         this.peerConnection = new RTCPeerConnection({
             iceServers: [{ urls: 'stun:stun.l.google.com:19302' }],
-            encodedInsertableStreams: true // ACTIVATE SOVEREIGN ENCRYPTION
+            encodedInsertableStreams: true
         });
 
         const encryptor = new FrameEncryptor(this.mediaKey);
@@ -207,24 +214,32 @@ export class SovereignCallManager {
         this.localStream.getTracks().forEach(track => {
             const sender = this.peerConnection.addTrack(track, this.localStream);
 
-            // Insert frame encryption
-            const streams = sender.createEncodedStreams();
-            const transformer = new TransformStream({
-                transform: (frame, controller) => encryptor.encrypt(frame, controller)
-            });
-            streams.readable.pipeThrough(transformer).pipeTo(streams.writable);
+            if (sender.createEncodedStreams) {
+                const streams = sender.createEncodedStreams();
+                const transformer = new TransformStream({
+                    transform: (frame, controller) => encryptor.encrypt(frame, controller)
+                });
+                streams.readable.pipeThrough(transformer).pipeTo(streams.writable);
+            }
         });
 
         // Handle incoming streams and apply decryption
         this.peerConnection.ontrack = (event) => {
-            const receiver = event.receiver;
-            const streams = receiver.createEncodedStreams();
-            const transformer = new TransformStream({
-                transform: (frame, controller) => encryptor.decrypt(frame, controller)
-            });
-            streams.readable.pipeThrough(transformer).pipeTo(streams.writable);
+            console.log('[SME] Remote track received:', event.track.kind);
 
-            if (this.onStreamUpdate) this.onStreamUpdate(event.streams[0], false);
+            const receiver = event.receiver;
+            if (receiver.createEncodedStreams) {
+                const streams = receiver.createEncodedStreams();
+                const transformer = new TransformStream({
+                    transform: (frame, controller) => encryptor.decrypt(frame, controller)
+                });
+                streams.readable.pipeThrough(transformer).pipeTo(streams.writable);
+            }
+
+            // Consistently update remote stream
+            if (event.streams && event.streams[0]) {
+                if (this.onStreamUpdate) this.onStreamUpdate(event.streams[0], false);
+            }
         };
 
         this.peerConnection.onicecandidate = (event) => {
@@ -247,8 +262,7 @@ export class SovereignCallManager {
     }
 
     async handleSignal(data) {
-        if (!this.peerConnection && data.signal.mediaPk) {
-            // Recipient side: receive PK and encapsulate
+        if (data.signal.mediaPk) {
             console.log('[SME] Received PQC PK from initiator.');
             const result = await Kyber768.encapsulate(data.signal.mediaPk);
             this.mediaKey = await this.importKey(result.sharedSecret);
@@ -282,6 +296,39 @@ export class SovereignCallManager {
         }
     }
 
+    async handleInvite(data) {
+        this.targetId = data.senderId;
+        this.lastInvite = data; // Store for acceptCall
+        window.dispatchEvent(new CustomEvent('incoming-call', { detail: data }));
+    }
+
+    async startScreenShare() {
+        try {
+            const screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true });
+            const videoTrack = screenStream.getVideoTracks()[0];
+
+            // Replace existing video track
+            const sender = this.peerConnection.getSenders().find(s => s.track && s.track.kind === 'video');
+            if (sender) {
+                sender.replaceTrack(videoTrack);
+            }
+
+            videoTrack.onended = () => this.stopScreenShare();
+            return screenStream;
+        } catch (err) {
+            console.error('[SME] Screen Share Error:', err);
+        }
+    }
+
+    async stopScreenShare() {
+        if (!this.localStream) return;
+        const videoTrack = this.localStream.getVideoTracks()[0];
+        const sender = this.peerConnection.getSenders().find(s => s.track && s.track.kind === 'video');
+        if (sender && videoTrack) {
+            sender.replaceTrack(videoTrack);
+        }
+    }
+
     async importKey(rawSecret) {
         return window.crypto.subtle.importKey(
             'raw',
@@ -307,10 +354,10 @@ export class SovereignCallManager {
             this.localStream = null;
         }
 
-        // Key shredding
         this.mediaKey = null;
         this.targetId = null;
         this.isInitiator = false;
+        this.lastInvite = null;
 
         if (this.onCallClosed) this.onCallClosed();
         console.log('[SME] Call terminated. Memory shredded.');
