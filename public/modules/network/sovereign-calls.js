@@ -304,13 +304,38 @@ export class SovereignCallManager {
 
     async startScreenShare() {
         try {
-            const screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true });
+            const screenStream = await navigator.mediaDevices.getDisplayMedia({
+                video: { cursor: "always" },
+                audio: false
+            });
             const videoTrack = screenStream.getVideoTracks()[0];
 
-            // Replace existing video track
-            const sender = this.peerConnection.getSenders().find(s => s.track && s.track.kind === 'video');
+            // Replace existing video track or add new one
+            let sender = this.peerConnection.getSenders().find(s => s.track && s.track.kind === 'video');
+
             if (sender) {
-                sender.replaceTrack(videoTrack);
+                await sender.replaceTrack(videoTrack);
+            } else {
+                // If no video sender exists (audio call), add it now
+                sender = this.peerConnection.addTrack(videoTrack, screenStream);
+
+                // Ensure new track is also encrypted
+                const encryptor = new FrameEncryptor(this.mediaKey);
+                if (sender.createEncodedStreams) {
+                    const streams = sender.createEncodedStreams();
+                    const transformer = new TransformStream({
+                        transform: (frame, controller) => encryptor.encrypt(frame, controller)
+                    });
+                    streams.readable.pipeThrough(transformer).pipeTo(streams.writable);
+                }
+
+                // Renegotiate for the new track
+                const offer = await this.peerConnection.createOffer();
+                await this.peerConnection.setLocalDescription(offer);
+                this.socket.emit('call-signal', {
+                    targetId: this.targetId,
+                    signal: { sdp: offer }
+                });
             }
 
             videoTrack.onended = () => this.stopScreenShare();

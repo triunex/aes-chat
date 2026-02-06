@@ -1602,6 +1602,57 @@ h2,
     }
 }
 
+/* Laptop Height Fix (Short screens) */
+@media (max-width: 1440px) {
+    .video-container.local {
+        width: 200px;
+        height: 120px;
+    }
+}
+
+/* Laptop Height Fix (Short screens) */
+@media (max-height: 800px) {
+    #callOverlay {
+        padding: 12px;
+    }
+
+    .scif-status-bar {
+        margin-bottom: 8px;
+        padding: 6px 12px;
+    }
+
+    .video-grid {
+        gap: 12px;
+    }
+
+    .video-container.local {
+        width: 160px;
+        height: 100px;
+        bottom: 80px;
+        /* Offset to not cover controls */
+        right: 12px;
+    }
+
+    .call-controls {
+        padding-top: 8px;
+        padding-bottom: 8px;
+    }
+
+    .call-btn {
+        width: 44px;
+        height: 44px;
+        font-size: 14px;
+    }
+
+    .stats-panel {
+        top: 12px;
+        right: 12px;
+        width: 160px;
+        padding: 10px;
+    }
+}
+
+
 .video-container {
     background: #111;
     border: 1px solid rgba(255, 255, 255, 0.05);
@@ -1609,12 +1660,21 @@ h2,
     position: relative;
     overflow: hidden;
     box-shadow: 0 30px 60px rgba(0, 0, 0, 0.4);
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .video-container video {
     width: 100%;
     height: 100%;
     object-fit: cover;
+}
+
+.video-container.remote video {
+    object-fit: contain;
+    /* Better for screen sharing and varying aspect ratios */
+    background: #000;
 }
 
 .video-label {
@@ -1628,6 +1688,7 @@ h2,
     font-size: 10px;
     font-weight: 700;
     color: white;
+    z-index: 10;
 }
 
 .video-container.local {
@@ -1638,7 +1699,9 @@ h2,
     height: 180px;
     border: 2px solid var(--accent-primary);
     z-index: 5001;
+    transition: all 0.3s ease;
 }
+
 
 .call-controls {
     display: flex;

@@ -245,6 +245,12 @@ class AESChatApp {
             this.isScreenSharing = false;
             btn?.classList.remove('active');
             btn.innerHTML = '<i class="fas fa-desktop"></i>';
+
+            // Restore camera preview in UI
+            const localVideo = document.getElementById('localVideo');
+            if (localVideo && this.callManager.localStream) {
+                localVideo.srcObject = this.callManager.localStream;
+            }
         } else {
             const stream = await this.callManager.startScreenShare();
             if (stream) {
@@ -252,9 +258,14 @@ class AESChatApp {
                 btn?.classList.add('active');
                 btn.innerHTML = '<i class="fas fa-stop-circle"></i>';
 
-                // Update local preview if needed
+                // Update local preview to current screen stream
                 const localVideo = document.getElementById('localVideo');
                 if (localVideo) localVideo.srcObject = stream;
+
+                // Handle screen share stop via browser's native button
+                stream.getVideoTracks()[0].onended = () => {
+                    if (this.isScreenSharing) this.toggleScreenShare();
+                };
             }
         }
     }
