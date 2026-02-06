@@ -263,6 +263,7 @@ class Message {
         this.deleted = false;
         this.disappearAt = data.disappearAt || null;
         this.fileData = data.fileData || null;
+        this.isEncrypted = data.isEncrypted || false;
     }
 }
 
@@ -383,6 +384,7 @@ io.on('connection', (socket) => {
             type: data.type || 'text',
             replyTo: data.replyTo,
             fileData: data.fileData,
+            isEncrypted: data.isEncrypted,
             disappearAt: room.settings.disappearingMessages
                 ? new Date(Date.now() + room.settings.disappearingMessages)
                 : null

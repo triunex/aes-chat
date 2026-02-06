@@ -55,52 +55,72 @@ export class SecureWhiteboard {
     }
 
     setupUI() {
-        // Create Premium Glass Toolbar
+        // Create Premium Glass Toolbar (Horizontal Bottom-Center)
         const toolbar = document.createElement('div');
-        toolbar.className = 'canvas-toolbar-v2';
+        toolbar.className = 'canvas-hub';
         toolbar.innerHTML = `
-            <div class="tool-group">
-                <button class="tool-btn active" data-tool="pen" title="Pen (P)"><i class="fas fa-pen"></i></button>
-                <button class="tool-btn" data-tool="laser" title="Laser Pointer (L)"><i class="fas fa-bolt"></i></button>
-                <button class="tool-btn" data-tool="eraser" title="Eraser (E)"><i class="fas fa-eraser"></i></button>
+            <div class="hub-section">
+                <button class="hub-btn active" data-tool="pen" title="Freehand (P)"><i class="fas fa-signature"></i></button>
+                <button class="hub-btn" data-tool="laser" title="Laser Pointer (L)"><i class="fas fa-magic"></i></button>
+                <button class="hub-btn" data-tool="eraser" title="Eraser (E)"><i class="fas fa-eraser"></i></button>
             </div>
-            <div class="tool-divider"></div>
-            <div class="tool-group">
-                <button class="tool-btn" data-tool="line" title="Line"><i class="fas fa-minus"></i></button>
-                <button class="tool-btn" data-tool="rect" title="Rectangle"><i class="fas fa-square"></i></button>
-                <button class="tool-btn" data-tool="circle" title="Circle"><i class="fas fa-circle"></i></button>
+            
+            <div class="hub-divider"></div>
+            
+            <div class="hub-section">
+                <button class="hub-btn" data-tool="line" title="Line"><i class="fas fa-slash"></i></button>
+                <button class="hub-btn" data-tool="rect" title="Rectangle"><i class="far fa-square"></i></button>
+                <button class="hub-btn" data-tool="circle" title="Circle"><i class="far fa-circle"></i></button>
             </div>
-            <div class="tool-divider"></div>
-            <div class="tool-group">
-                <input type="color" id="canvasColor" value="#00ff9d">
-                <select id="canvasWidth">
-                    <option value="2">Thin</option>
-                    <option value="5" selected>Med</option>
-                    <option value="12">Thick</option>
-                </select>
+            
+            <div class="hub-divider"></div>
+            
+            <div class="hub-section">
+                <div class="color-swatch">
+                    <input type="color" id="hubColor" value="#00ff9d">
+                </div>
+                <div class="size-selector">
+                    <button class="size-dot thin" data-size="2" title="Thin"></button>
+                    <button class="size-dot med active" data-size="5" title="Medium"></button>
+                    <button class="size-dot thick" data-size="12" title="Thick"></button>
+                </div>
             </div>
-            <div class="tool-divider"></div>
-            <button class="tool-btn danger" id="canvasClear" title="Clear All"><i class="fas fa-trash"></i></button>
+            
+            <div class="hub-divider"></div>
+            
+            <div class="hub-section">
+                <button class="hub-btn danger" id="hubClear" title="Clear All"><i class="fas fa-trash-alt"></i></button>
+                <button class="hub-btn exit" id="hubClose" title="Close Canvas (Esc)"><i class="fas fa-times"></i></button>
+            </div>
         `;
         this.container.appendChild(toolbar);
 
         // Bind UI Events
-        toolbar.querySelectorAll('.tool-btn:not(.danger)').forEach(btn => {
+        toolbar.querySelectorAll('.hub-btn[data-tool]').forEach(btn => {
             btn.onclick = () => {
-                toolbar.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
+                toolbar.querySelectorAll('.hub-btn').forEach(b => b.classList.remove('active'));
                 btn.classList.add('active');
                 this.tool = btn.dataset.tool;
             };
         });
 
-        const colorPicker = toolbar.querySelector('#canvasColor');
-        colorPicker.onchange = (e) => this.color = e.target.value;
+        toolbar.querySelectorAll('.size-dot').forEach(dot => {
+            dot.onclick = () => {
+                toolbar.querySelectorAll('.size-dot').forEach(d => d.classList.remove('active'));
+                dot.classList.add('active');
+                this.lineWidth = parseInt(dot.dataset.size);
+            };
+        });
 
-        const widthPicker = toolbar.querySelector('#canvasWidth');
-        widthPicker.onchange = (e) => this.lineWidth = parseInt(e.target.value);
+        const colorPicker = toolbar.querySelector('#hubColor');
+        colorPicker.oninput = (e) => this.color = e.target.value;
 
-        toolbar.querySelector('#canvasClear').onclick = () => {
+        toolbar.querySelector('#hubClear').onclick = () => {
             if (confirm('Wipe the entire canvas?')) this.clear();
+        };
+
+        toolbar.querySelector('#hubClose').onclick = () => {
+            if (window.chatApp) window.chatApp.toggleWhiteboard();
         };
     }
 
@@ -296,9 +316,18 @@ export class SecureWhiteboard {
         this.ctx.lineWidth = s.width;
         this.ctx.fillStyle = 'transparent';
 
+        // Professional 'Blueprint' preview for ghosts
+        if (s.isGhost) {
+            this.ctx.setLineDash([5, 5]);
+            this.ctx.globalAlpha = 0.6;
+        } else {
+            this.ctx.setLineDash([]);
+            this.ctx.globalAlpha = 1.0;
+        }
+
         if (s.tool === 'pen' || s.tool === 'eraser') {
             if (s.tool === 'eraser') {
-                this.ctx.strokeStyle = '#0a0a0c';
+                this.ctx.strokeStyle = '#060608'; // Matches new whiteboard bg
                 this.ctx.lineWidth = s.width * 10;
             }
             this.drawPath(s);
@@ -322,6 +351,10 @@ export class SecureWhiteboard {
             this.ctx.arc(start.x, start.y, radius, 0, Math.PI * 2);
             this.ctx.stroke();
         }
+
+        // Reset
+        this.ctx.setLineDash([]);
+        this.ctx.globalAlpha = 1.0;
     }
 
     drawPath(s) {
