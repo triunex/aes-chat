@@ -5,6 +5,7 @@
 
 import { SpatialAudioEngine } from './modules/audio/spatial-engine.js';
 import { WebRTCManager } from './modules/network/webrtc-mesh.js';
+import { SecureWhiteboard } from './modules/canvas/whiteboard.js';
 
 // Global Socket, defined in HTML script
 // const socket = io(); // We use this.socket inside class.
@@ -968,6 +969,41 @@ class AESChatApp {
         const div = document.createElement('div');
         div.textContent = text;
         return div.innerHTML;
+    }
+
+    // Infinite Whiteboard
+    toggleWhiteboard() {
+        const wb = document.getElementById('whiteboardContainer');
+        if (wb) {
+            if (wb.classList.contains('hidden')) {
+                wb.classList.remove('hidden');
+                if (!this.whiteboard) {
+                    this.whiteboard = new SecureWhiteboard(this.socket, null, 'canvasMount');
+                }
+            } else {
+                wb.classList.add('hidden');
+            }
+        }
+    }
+
+    setWhiteboardTool(tool) {
+        if (this.whiteboard) {
+            this.whiteboard.tool = tool;
+            document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
+            document.querySelector(`[data-tool="${tool}"]`)?.classList.add('active');
+        }
+    }
+
+    setWhiteboardColor(color) {
+        if (this.whiteboard) this.whiteboard.color = color;
+    }
+
+    setWhiteboardSize(size) {
+        if (this.whiteboard) this.whiteboard.lineWidth = size;
+    }
+
+    broadcastCanvasStroke(data) {
+        if (this.socket) this.socket.emit('canvas-stroke', data);
     }
 
     // Holo-Spatial Audio

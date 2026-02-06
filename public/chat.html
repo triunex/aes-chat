@@ -149,6 +149,25 @@
             <div id="radarContainer"></div>
         </div>
 
+        <!-- Infinite Canvas (Hidden) -->
+        <div id="whiteboardContainer" class="hidden">
+            <div class="whiteboard-toolbar">
+                <div class="tool-group">
+                    <button class="tool-btn active" data-tool="pen"
+                        onclick="chatApp.setWhiteboardTool('pen')">✎</button>
+                    <button class="tool-btn" data-tool="eraser" onclick="chatApp.setWhiteboardTool('eraser')">⌫</button>
+                    <button class="tool-btn" data-tool="pan" onclick="chatApp.setWhiteboardTool('pan')">✋</button>
+                </div>
+                <div class="tool-group">
+                    <input type="color" id="wbColor" value="#00ff9d" onchange="chatApp.setWhiteboardColor(this.value)">
+                    <input type="range" id="wbSize" min="1" max="20" value="2"
+                        onchange="chatApp.setWhiteboardSize(this.value)">
+                </div>
+                <button class="close-wb" onclick="chatApp.toggleWhiteboard()">CLOSE</button>
+            </div>
+            <div id="canvasMount"></div>
+        </div>
+
         <main class="chat-main">
             <header class="chat-header">
                 <button class="mobile-menu" id="mobileMenu">
@@ -163,6 +182,15 @@
                     <div class="typing-indicator" id="typingIndicator"></div>
                 </div>
                 <div class="header-actions">
+                    <button class="icon-btn" onclick="chatApp.toggleWhiteboard()" title="Encrypted Whiteboard">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <path d="M12 19l7-7 3 3-7 7-3-3z" />
+                            <path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z" />
+                            <path d="M2 2l7.586 7.586" />
+                            <circle cx="11" cy="11" r="2" />
+                        </svg>
+                    </button>
                     <button class="icon-btn" onclick="chatApp.toggleSpatialRadar()" title="Enter Holo-Space">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                             stroke-width="2">

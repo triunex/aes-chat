@@ -558,6 +558,12 @@ io.on('connection', (socket) => {
         socket.to(currentRoom).emit('user-left-voice', { userId: socket.id });
     });
 
+    // Whiteboard Relay
+    socket.on('canvas-stroke', (data) => {
+        if (!currentRoom) return;
+        socket.to(currentRoom).emit('canvas-stroke', data);
+    });
+
     // Kick Member
     socket.on('kick-member', ({ targetId }) => {
         if (!currentRoom) return;
