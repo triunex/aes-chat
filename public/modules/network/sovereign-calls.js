@@ -355,6 +355,8 @@ export class SovereignCallManager {
     }
 
     async importKey(rawSecret) {
+        // Store raw secret for safety fingerprint generation
+        this.rawMediaSecret = rawSecret;
         return window.crypto.subtle.importKey(
             'raw',
             rawSecret,
@@ -362,6 +364,26 @@ export class SovereignCallManager {
             false,
             ['encrypt', 'decrypt']
         );
+    }
+
+    async getSafetyCode() {
+        if (!this.rawMediaSecret) return 'PENDING';
+
+        const hashBuffer = await crypto.subtle.digest('SHA-256', this.rawMediaSecret);
+        const hashArray = Array.from(new Uint8Array(hashBuffer));
+
+        // Convert to a human-friendly format (3-word SAS)
+        const dictionary = [
+            'ALPHA', 'BRAVO', 'CHARLIE', 'DELTA', 'ECHO', 'FOXTROT', 'GOLF', 'HOTEL', 'INDIA', 'JULIET',
+            'KILO', 'LIMA', 'MIKE', 'NOVEMBER', 'OSCAR', 'PAPA', 'QUEBEC', 'ROMEO', 'SIERRA', 'TANGO',
+            'UNIFORM', 'VICTOR', 'WHISKEY', 'XRAY', 'YANKEE', 'ZULU', 'STEEL', 'GHOST', 'SHADOW', 'WOLF'
+        ];
+
+        const w1 = dictionary[hashArray[0] % dictionary.length];
+        const w2 = dictionary[hashArray[1] % dictionary.length];
+        const w3 = dictionary[hashArray[2] % dictionary.length];
+
+        return `${w1}-${w2}-${w3}`;
     }
 
     endCall(notifyPeer = true) {
@@ -380,6 +402,7 @@ export class SovereignCallManager {
         }
 
         this.mediaKey = null;
+        this.rawMediaSecret = null; // Clear sensitive data
         this.targetId = null;
         this.isInitiator = false;
         this.lastInvite = null;

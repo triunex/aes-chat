@@ -164,12 +164,19 @@ class AESChatApp {
         if (!this.callManager) return;
 
         // Remote/Local Stream Updates
-        this.callManager.onStreamUpdate = (stream, isLocal) => {
+        this.callManager.onStreamUpdate = async (stream, isLocal) => {
             const videoId = isLocal ? 'localVideo' : 'remoteVideo';
             const videoEl = document.getElementById(videoId);
             if (videoEl) {
                 videoEl.srcObject = stream;
                 document.getElementById('callOverlay')?.classList.remove('hidden');
+
+                // Update Safety Code on UI
+                if (!isLocal) {
+                    const code = await this.callManager.getSafetyCode();
+                    const codeEl = document.getElementById('callSafetyCode');
+                    if (codeEl) codeEl.textContent = code;
+                }
             }
         };
 
