@@ -1,121 +1,105 @@
-# AES Chat
-### Quantum-Resistant, High-Fidelity End-to-End Encrypted Real-Time Communication Platform
+# Sovereign Communication Protocol: AES Chat
 
-![Build Status](https://img.shields.io/badge/build-passing-brightgreen) ![Security](https://img.shields.io/badge/security-AES--256--GCM%20%2B%20Kyber--768-blueviolet) ![License](https://img.shields.io/badge/license-MIT-lightgrey)
+### A Comparative Analysis of Post-Quantum Cryptographic Implementation and Spatial Audio Networking
 
-**AES Chat** is a high-security, browser-native communication platform designed for the post-quantum era. It establishes a sovereign digital territory by combining military-grade symmetric encryption (AES-256-GCM) with cutting-edge lattice-based asymmetric cryptography (Crystals-Kyber-768).
+**AES Chat** is a research-grade, browser-native communication infrastructure engineered for the post-quantum computational era. It establishes a cryptographically sovereign digital perimeter by synthesizing military-grade symmetric encryption (AES-256-GCM) with advanced lattice-based asymmetric primitives (ML-KEM/Kyber-768).
 
 ---
 
 ## 1. Abstract
 
-The platform addresses the "Harvest Now, Decrypt Later" threat posed by emerging Quantum Computing. By utilizing **NIST-standard Post-Quantum Cryptography (PQC)**, AES Chat ensures that even if encrypted traffic is captured today, it remains mathematically inaccessible to future quantum adversaries. Beyond security, the platform introduces **Spatial Computing** for collaborative voice and an **Infinite Encrypted Canvas**, redefining the ergonomics of digital interaction.
+The platform addresses the emergent threat of "Harvest Now, Decrypt Later" strategies employed by sophisticated state-level adversaries. By integrating NIST-standardized Post-Quantum Cryptography (PQC), the protocol ensures that captured ciphertext remains mathematically intractable even against future cryptanalytic attacks facilitated by Large-Scale Quantum Computers (LSQC). The system further integrates Spatial Computing for collaborative audio environments and an Infinite Encrypted Canvas, optimizing the cognitive ergonomics of secure remote collaboration.
 
 ---
 
-## 2. Revolutionary Features
+## 2. Technical Feature Specification
 
-### 🛡️ Post-Quantum Security (PQC)
-*   **Kyber-768 Handshake**: Replaces vulnerable RSA/ECDH with a Module-Lattice-based Key Encapsulation Mechanism (KEM). 
-*   **Ephemeral Session Keys**: Random 256-bit AES keys are generated per session and never stored on disk, ensuring Perfect Forward Secrecy.
-*   **E2EE Everything**: Every message, drawing stroke, and voice packet is encrypted client-side using the PQC-exchanged key.
+### 2.1 Neural-Lattice Key Exchange (ML-KEM)
+The protocol utilizes the **Kyber-768 algorithm** to perform cryptographic handshakes, effectively replacing legacy RSA and Elliptic Curve Diffie-Hellman (ECDH) protocols. This Module-Lattice-based Key Encapsulation Mechanism (KEM) is designed to withstand attacks from both classical and quantum processors.
 
-### 🎧 Holo-Spatial Voice Rooms
-*   **3D Audio Radar**: A visual radar UI allows users to position themselves and others in a virtual 3D space.
-*   **The Cocktail Party Effect**: Spatial audio separation allows participants to understand multiple simultaneous speakers by positioning them in the stereo field (Left/Right/Near/Far).
-*   **P2P WebRTC Mesh**: Audio streams bypass the server entirely, flowing directly between peer-encrypted nodes.
+### 2.2 Sovereign Media Engine (SME)
+The Sovereign Call System implements a double-layered security architecture for real-time media:
+- **Layer 1 (Standard)**: DTLS-SRTP encryption provided by the WebRTC stack.
+- **Layer 2 (Sovereign)**: Secondary frame-level encryption using AES-256-GCM via Insertable Streams (Encoded Transforms).
+- **Out-of-Band Verification**: Integration of a Short Authentication String (SAS) ("Safety Code") derived from the SHA-256 hash of the shared PQC secret to neutralize Man-in-the-Middle (MITM) attacks.
 
-### ♾️ Infinite Canvas Collaboration
-*   **End-to-End Encrypted Whiteboard**: A vector-based canvas where all drawing data is encrypted before transmission.
-*   **Infinite Panning & Zoom**: No boundaries; designed for complex schematic brainstorming and mind-mapping.
-*   **Vector Fidelity**: High-precision strokes with adjustable tools, colors, and global state sync.
+### 2.3 Zero-Persistence Memory Architecture
+The system operates on an ephemeral memory model. Cryptographic keys and session-specific material reside exclusively in volatile RAM and are explicitly purged (overwritten/nullified) upon session termination. No plaintext data or keying material is committed to non-volatile storage.
 
-### ⚡ Core Messenger Capabilities
-*   **Self-Destruct (Disappearing Messages)**: Configurable timers from 5 seconds to 24 hours.
-*   **Advanced Reactions**: Quick-tap emoji reactions synced across all participants.
-*   **Live Code Highlighting**: Automatic detection and formatting of code snippets for developers.
-*   **File & Media Exchange**: Encrypted blob transfer for images, videos, and documents.
-*   **Dark-Mode Ergonomics**: A high-contrast, cyberpunk-inspired UI designed for long-session comfort.
+### 2.4 Holo-Spatial Acoustic Environment
+The platform features a 3D Audio Radar utilizing the Web Audio API for spatialization.
+- **Stereo Field Separation**: Participants are positioned in a virtual three-dimensional field to leverage the "Cocktail Party Effect," improving speech intelligibility in multi-peer environments.
+- **P2P Mesh Topologies**: Media packets flow directly between authenticated peers, minimizing latency and eliminating central points of interception.
 
 ---
 
-## 3. Computational Security Analysis
+## 3. Cryptographic Intensity and Computational Benchmarks
 
-### Brute Force Difficulty (AES-256)
-The security of the symmetric layer is based on a 256-bit key length. The number of possible keys is $2^{256}$, which is approximately $1.15 \times 10^{77}$.
+### 3.1 Symmetric Layer Durability (AES-256)
+The symmetric encryption layer utilizes a 256-bit key length, providing $2^{256}$ potential key combinations (approximately $1.15 \times 10^{77}$).
 
-**The Calculation**:
-*   **Global Computing Power**: Estimated at $10^{20}$ FLOPS (Floating Point Operations Per Second).
-*   **Time to Crack**: $10^{77}$ keys / $10^{20}$ ops/sec = $10^{57}$ seconds.
-*   **In Years**: $1.15 \times 10^{57} / (3.15 \times 10^7) \approx 3.67 \times 10^{49}$ years.
+**Computational Analysis**:
+- **Baseline Global Throughput**: Assuming a hypothetical aggregate computing power of $10^{20}$ FLOPS.
+- **Estimated Brute-Force Duration**: $1.15 \times 10^{57} / (3.15 \times 10^7) \approx 3.67 \times 10^{49}$ years.
+- **Conclusion**: The temporal requirements for a brute-force exhaustion of the key space exceed the estimated remaining life of the universe by several orders of magnitude.
 
-Given that the age of the universe is approximately $1.38 \times 10^{10}$ years, the time required to brute-force a single session key exceeds the **remaining life of the universe by a factor of trillions**.
-
-### Quantum Resistance (Kyber-768)
-Kyber-768 provides a security level equivalent to AES-192/256 against quantum attacks. By utilizing Module Learning with Errors (M-LWE) problems, it remains secure even as Grover's and Shor's algorithms render classical RSA/ECC obsolete.
+### 3.2 Lattice-Based Security (Kyber-768)
+Kyber-768 derives its security from the hardness of the Module Learning with Errors (M-LWE) problem. It provides a security level equivalent to AES-192/256 against quantum cryptanalysis, ensuring forward secrecy in a post-quantum environment.
 
 ---
 
-## 4. Technical Architecture
+## 4. System Architecture
 
-```mermaid
-graph TD
-    ClientA[Client A] -->|Encrypted Payload| Server(Relay Server)
-    ClientB[Client B] -->|Encrypted Payload| Server
-    Server -->|Persist Encrypted| DB[(Firestore / JSON)]
-    
-    subgraph "Kyber-768 PQC Handshake"
-    ClientA -- Public Key --> ClientB
-    ClientB -- Encapsulate --> ClientA
-    end
-    
-    subgraph "Spatial Audio Mesh"
-    ClientA <== WebRTC P2P ==> ClientB
-    end
+### 4.1 Topology Diagram
+The system utilizes a hybrid model for signaling and media:
+
+```bash
++-----------+          Signaling (Encrypted)         +------------+
+|  Client A | <------------------------------------> | Relay Node |
++-----------+                                        +------------+
+      ^                                                     ^
+      |                                                     |
+      |             Sovereign P2P Tunnel (PQC-E2EE)         |
+      +-----------------------------------------------------+
 ```
 
-### Technology Stack
-*   **Frontend**: Vanilla JavaScript (ES6 Modules Core), HTML5, CSS3 (Custom Design System).
-*   **Cryptography**: `crystals-kyber` (WASM/JS), Web Crypto API (SubtleCrypto).
-*   **Real-time**: Socket.IO for signaling and message relay.
-*   **Audio Engine**: Web Audio API with Spatial Panner Nodes.
-*   **Networking**: WebRTC Data Channels and Media Streams for P2P Mesh.
-*   **Persistence**: Node.js, Express, and Google Firestore (Production) / Local JSON (Dev).
+### 4.2 Technology Integration
+- **Platform Core**: ECMAScript 2022 (Modules), HTML5, CSS3.
+- **Cryptographic Library**: `crystals-kyber` implementation (WASM/JS) and W3C Web Crypto API.
+- **Signaling Layer**: WebSocket (Socket.IO) with PQC handshake management.
+- **Media Stack**: Web Audio API (Spatial Panner Nodes), WebRTC (Encoded Transforms).
 
 ---
 
-## 5. Development & Deployment
+## 5. Deployment and Implementation
 
-### Prerequisites
-*   Node.js (v18+)
-*   NPM or Yarn
-
-### Installation
-1. Clone the repository:
+### 5.1 Local Environment Configuration
+1. Initialize the repository:
    ```bash
    git clone https://github.com/triunex/aes-chat.git
    ```
-2. Install dependencies:
+2. Dependency installation:
    ```bash
    npm install
    ```
-3. Start the development server:
+3. Development execution:
    ```bash
    npm run dev
    ```
 
-### Deployment
-The platform is optimized for **Render**, **Vercel**, or **Docker** environments.
-*   Set `NODE_ENV=production` for Firestore integration.
-*   Ensure WebRTC STUN/TURN servers are configured for restrictive NAT environments.
+### 5.2 Production Deployment
+The infrastructure is optimized for containerized environments and cloud-native platforms such as Render.
+- Deployment requires `NODE_ENV=production` configuration.
+- STUN/TURN infrastructure is required for peer traversal across restrictive NAT/Firewall boundaries.
 
 ---
 
-## 6. Interface Design
-![Secure Terminal Interface](screenshots/demo.png)
-*Figure 1: High-contrast, futuristic interface featuring the Holo-Space Radar and Infinite Canvas tools.*
+## 6. Regulatory and Ethical Considerations
+
+The protocol assumes a "Zero-Trust" stance. Because decryption keys are ephemeral and strictly client-side, the infrastructure owner maintains no technical capacity to comply with data access requests (subpoenas) for message or call content. Users are advised to maintain physical security of their endpoints, as the software cannot protect against hardware-level data exfiltration or state-sponsored endpoint compromise.
 
 ---
 
-## 7. License
-MIT License - Developed for high-stakes secure communication.
+## 7. License and Attribution
+
+This project is licensed under the MIT License. Developed for critical, high-stakes communication where cryptographic sovereignty is paramount.
