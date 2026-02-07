@@ -410,4 +410,46 @@ export class SovereignCallManager {
         if (this.onCallClosed) this.onCallClosed();
         console.log('[SME] Call terminated. Memory shredded.');
     }
+
+    async flipCamera() {
+        if (!this.localStream) return;
+
+        const videoTrack = this.localStream.getVideoTracks()[0];
+        if (!videoTrack) return;
+
+        // Determine current facing mode and flip it
+        const currentMode = videoTrack.getSettings().facingMode;
+        const newMode = currentMode === 'user' ? 'environment' : 'user';
+
+        try {
+            // Stop old track
+            videoTrack.stop();
+
+            // Get new stream with flipped camera
+            const newStream = await navigator.mediaDevices.getUserMedia({
+                video: { facingMode: newMode },
+                audio: false
+            });
+
+            const newTrack = newStream.getVideoTracks()[0];
+
+            // Replace in local stream holder
+            const oldTracks = this.localStream.getVideoTracks();
+            oldTracks.forEach(t => this.localStream.removeTrack(t));
+            this.localStream.addTrack(newTrack);
+
+            // Replace in PeerConnection
+            const sender = this.peerConnection.getSenders().find(s => s.track && s.track.kind === 'video');
+            if (sender) {
+                await sender.replaceTrack(newTrack);
+            }
+
+            // Trigger UI update
+            if (this.onStreamUpdate) {
+                this.onStreamUpdate(this.localStream, true);
+            }
+        } catch (err) {
+            console.error('[SME] Camera Flip Failed:', err);
+        }
+    }
 }

@@ -277,6 +277,12 @@ class AESChatApp {
         }
     }
 
+    async flipCamera() {
+        if (this.callManager) {
+            await this.callManager.flipCamera();
+        }
+    }
+
     toggleCallStats() {
         const statsPanel = document.getElementById('callStatsPanel');
         if (statsPanel) {
