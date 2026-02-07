@@ -350,29 +350,37 @@ io.on('connection', (socket) => {
             color: generateUserColor(userName)
         };
 
-        // Add user to room using persistent userId as key to prevent duplicates
+        // Check if this is a fresh join or just a reconnection pulse
+        const isNewJoin = !room.members.has(persistentId);
+
+        // Add user to room using persistent userId as key
         room.addMember(persistentId, currentUser);
         users.set(socket.id, { ...currentUser, roomId });
 
         // Join socket room
         socket.join(roomId);
 
-        // Send room data to joining user
+        // Send room data
         socket.emit('room-joined', {
             roomId,
             roomName: room.name,
             members: room.getMembersList(),
-            messages: room.messages.slice(-5000), // Increased history limit
+            messages: room.messages.slice(-5000),
             settings: room.settings
         });
-        saveRooms(); // Save state
+        saveRooms();
 
         // Notify others
         socket.to(roomId).emit('user-joined', {
             user: currentUser,
             members: room.getMembersList()
         });
-        console.log(`✅ ${userName} joined room: ${roomId} (UID: ${persistentId})`);
+
+        // SHADOW LOGGING: Anonymize metadata to prevent tracking
+        if (isNewJoin) {
+            const maskedId = persistentId.substring(0, 8) + '...';
+            console.log(`[NETWORK] Peer connected to room ${roomId.substring(0, 8)}... (ID: ${maskedId})`);
+        }
     });
 
     // Handle messages
