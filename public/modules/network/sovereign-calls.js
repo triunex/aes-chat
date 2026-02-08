@@ -203,8 +203,31 @@ export class SovereignCallManager {
     async initPeerConnection() {
         if (this.peerConnection) return;
 
+        // ICE Servers: STUN for discovery + TURN for relay fallback
+        const iceServers = [
+            { urls: 'stun:stun.l.google.com:19302' },
+            { urls: 'stun:stun1.l.google.com:19302' },
+            { urls: 'stun:stun2.l.google.com:19302' },
+            // Public TURN servers for NAT traversal fallback
+            {
+                urls: 'turn:openrelay.metered.ca:80',
+                username: 'openrelayproject',
+                credential: 'openrelayproject'
+            },
+            {
+                urls: 'turn:openrelay.metered.ca:443',
+                username: 'openrelayproject',
+                credential: 'openrelayproject'
+            },
+            {
+                urls: 'turn:openrelay.metered.ca:443?transport=tcp',
+                username: 'openrelayproject',
+                credential: 'openrelayproject'
+            }
+        ];
+
         this.peerConnection = new RTCPeerConnection({
-            iceServers: [{ urls: 'stun:stun.l.google.com:19302' }],
+            iceServers,
             encodedInsertableStreams: true
         });
 
@@ -244,11 +267,25 @@ export class SovereignCallManager {
 
         this.peerConnection.onicecandidate = (event) => {
             if (event.candidate) {
+                console.log('[SME] Sending ICE candidate:', event.candidate.type);
                 this.socket.emit('call-signal', {
                     targetId: this.targetId,
                     signal: { ice: event.candidate }
                 });
             }
+        };
+
+        // ICE Connection State Logging for debugging
+        this.peerConnection.oniceconnectionstatechange = () => {
+            const state = this.peerConnection.iceConnectionState;
+            console.log('[SME] ICE Connection State:', state);
+            if (state === 'failed' || state === 'disconnected') {
+                console.error('[SME] ICE Connection Failed. Check NAT/Firewall.');
+            }
+        };
+
+        this.peerConnection.onconnectionstatechange = () => {
+            console.log('[SME] Peer Connection State:', this.peerConnection.connectionState);
         };
 
         if (this.isInitiator) {
