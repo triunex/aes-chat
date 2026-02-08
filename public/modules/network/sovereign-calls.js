@@ -108,6 +108,12 @@ export class SovereignCallManager {
      * Start a call with a PQC Handshake
      */
     async startCall(targetId, isVideo = true) {
+        // Browser Compatibility Check
+        if (!RTCRtpSender.prototype.createEncodedStreams) {
+            console.warn('[SME] Browser does not support Insertable Streams. Encryption layer disabled.');
+            alert('Your browser does not fully support encrypted calls. Please use Chrome or Edge for best security.');
+        }
+
         this.targetId = targetId;
         this.isInitiator = true;
 
@@ -158,16 +164,25 @@ export class SovereignCallManager {
 
     /**
      * Post-Quantum Media Key Exchange using ML-KEM
+     * Includes timeout protection to prevent hanging calls
      */
     async negotiateMediaKey() {
         console.log('[SME] Negotiating PQC Media Key...');
+        const NEGOTIATION_TIMEOUT = 15000; // 15 seconds
 
         if (this.isInitiator) {
             const keyPair = await Kyber768.generateKeyPair();
 
-            return new Promise((resolve) => {
+            return new Promise((resolve, reject) => {
+                const timeout = setTimeout(() => {
+                    this.socket.off('call-media-handshake', onHandshake);
+                    console.error('[SME] Key negotiation timeout.');
+                    reject(new Error('Key exchange timeout. Please try again.'));
+                }, NEGOTIATION_TIMEOUT);
+
                 const onHandshake = async (data) => {
                     if (data.senderId !== this.targetId || !data.mediaSecret) return;
+                    clearTimeout(timeout);
                     this.socket.off('call-media-handshake', onHandshake);
 
                     const sharedSecret = await Kyber768.decapsulate(data.mediaSecret.ciphertext, keyPair.sk);
@@ -188,12 +203,17 @@ export class SovereignCallManager {
             // Recipient: Wait for handleSignal to capture mediaPk
             if (this.mediaKey) return; // Already established via handleSignal race?
 
-            return new Promise((resolve) => {
+            return new Promise((resolve, reject) => {
+                const startTime = Date.now();
                 const checkKey = setInterval(() => {
                     if (this.mediaKey) {
                         clearInterval(checkKey);
                         console.log('[SME] Secure Media Key Established (Recipient).');
                         resolve();
+                    } else if (Date.now() - startTime > NEGOTIATION_TIMEOUT) {
+                        clearInterval(checkKey);
+                        console.error('[SME] Key negotiation timeout (Recipient).');
+                        reject(new Error('Key exchange timeout. Please try again.'));
                     }
                 }, 100);
             });
@@ -279,8 +299,17 @@ export class SovereignCallManager {
         this.peerConnection.oniceconnectionstatechange = () => {
             const state = this.peerConnection.iceConnectionState;
             console.log('[SME] ICE Connection State:', state);
-            if (state === 'failed' || state === 'disconnected') {
-                console.error('[SME] ICE Connection Failed. Check NAT/Firewall.');
+            if (state === 'failed') {
+                console.error('[SME] ICE Connection Failed. Attempting ICE Restart...');
+                this.attemptIceRestart();
+            } else if (state === 'disconnected') {
+                console.warn('[SME] ICE Disconnected. Waiting for recovery...');
+                // Give it 5 seconds to recover before restart
+                setTimeout(() => {
+                    if (this.peerConnection && this.peerConnection.iceConnectionState === 'disconnected') {
+                        this.attemptIceRestart();
+                    }
+                }, 5000);
             }
         };
 
@@ -487,6 +516,22 @@ export class SovereignCallManager {
             }
         } catch (err) {
             console.error('[SME] Camera Flip Failed:', err);
+        }
+    }
+
+    async attemptIceRestart() {
+        if (!this.peerConnection || !this.isInitiator) return;
+
+        try {
+            console.log('[SME] Performing ICE Restart...');
+            const offer = await this.peerConnection.createOffer({ iceRestart: true });
+            await this.peerConnection.setLocalDescription(offer);
+            this.socket.emit('call-signal', {
+                targetId: this.targetId,
+                signal: { sdp: offer }
+            });
+        } catch (err) {
+            console.error('[SME] ICE Restart Failed:', err);
         }
     }
 }

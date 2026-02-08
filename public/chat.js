@@ -220,6 +220,11 @@ class AESChatApp {
     }
 
     endSovereignCall() {
+        // Cleanup stats interval to prevent memory leak
+        if (this.statsInterval) {
+            clearInterval(this.statsInterval);
+            this.statsInterval = null;
+        }
         this.callManager.endCall(true);
     }
 
