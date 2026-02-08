@@ -522,8 +522,18 @@ export class SovereignCallManager {
     async attemptIceRestart() {
         if (!this.peerConnection || !this.isInitiator) return;
 
+        // Track restart attempts
+        this.iceRestartAttempts = (this.iceRestartAttempts || 0) + 1;
+
+        if (this.iceRestartAttempts > 2) {
+            console.error('[SME] ICE Restart failed after 2 attempts. Showing retry modal.');
+            this.endCall(false);
+            if (this.onCallFailed) this.onCallFailed();
+            return;
+        }
+
         try {
-            console.log('[SME] Performing ICE Restart...');
+            console.log('[SME] Performing ICE Restart (Attempt ' + this.iceRestartAttempts + ')...');
             const offer = await this.peerConnection.createOffer({ iceRestart: true });
             await this.peerConnection.setLocalDescription(offer);
             this.socket.emit('call-signal', {
@@ -532,6 +542,7 @@ export class SovereignCallManager {
             });
         } catch (err) {
             console.error('[SME] ICE Restart Failed:', err);
+            if (this.onCallFailed) this.onCallFailed();
         }
     }
 }

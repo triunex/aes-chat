@@ -183,14 +183,47 @@ class AESChatApp {
         this.callManager.onCallClosed = () => {
             document.getElementById('callOverlay')?.classList.add('hidden');
             document.getElementById('incomingCallModal')?.classList.add('hidden');
+            this.stopRingtone();
             this.showToast('Secure Session Closed. Memory Shredded.', 'info');
+        };
+
+        // Handle call failure (show retry modal)
+        this.callManager.onCallFailed = () => {
+            document.getElementById('callOverlay')?.classList.add('hidden');
+            document.getElementById('callFailedModal')?.classList.remove('hidden');
         };
 
         window.addEventListener('incoming-call', (e) => {
             const { senderName, isVideo } = e.detail;
             document.getElementById('incomingCallName').textContent = senderName.toUpperCase();
             document.getElementById('incomingCallModal')?.classList.remove('hidden');
+            this.playRingtone();
         });
+    }
+
+    // Audio Notification Methods
+    playRingtone() {
+        const audio = document.getElementById('ringtoneAudio');
+        if (audio) {
+            audio.currentTime = 0;
+            audio.play().catch(() => { }); // Ignore autoplay restrictions
+        }
+    }
+
+    stopRingtone() {
+        const audio = document.getElementById('ringtoneAudio');
+        if (audio) {
+            audio.pause();
+            audio.currentTime = 0;
+        }
+    }
+
+    playMessageSound() {
+        const audio = document.getElementById('messageAudio');
+        if (audio) {
+            audio.currentTime = 0;
+            audio.play().catch(() => { }); // Ignore autoplay restrictions
+        }
     }
 
     // Call Actions for UI
@@ -201,22 +234,45 @@ class AESChatApp {
             return;
         }
 
+        // Store for retry
+        this.lastCallAttempt = { targetId: others[0].id, isVideo };
+
         try {
             await this.callManager.startCall(others[0].id, isVideo);
             this.showToast('Negotiating Sovereign Line...', 'info');
         } catch (err) {
             this.showToast(err.message, 'error');
+            document.getElementById('callFailedModal')?.classList.remove('hidden');
         }
     }
 
     acceptSovereignCall() {
-        this.callManager.acceptCall(); // Logic moved to manager to check lastInvite
+        this.stopRingtone();
+        this.callManager.acceptCall();
         document.getElementById('incomingCallModal')?.classList.add('hidden');
     }
 
     rejectSovereignCall() {
+        this.stopRingtone();
         this.socket.emit('call-reject', { targetId: this.callManager.targetId });
         document.getElementById('incomingCallModal')?.classList.add('hidden');
+    }
+
+    async retryCall() {
+        document.getElementById('callFailedModal')?.classList.add('hidden');
+        if (this.lastCallAttempt) {
+            try {
+                await this.callManager.startCall(this.lastCallAttempt.targetId, this.lastCallAttempt.isVideo);
+                this.showToast('Retrying Sovereign Line...', 'info');
+            } catch (err) {
+                this.showToast(err.message, 'error');
+                document.getElementById('callFailedModal')?.classList.remove('hidden');
+            }
+        }
+    }
+
+    dismissCallFailedModal() {
+        document.getElementById('callFailedModal')?.classList.add('hidden');
     }
 
     endSovereignCall() {
@@ -352,8 +408,9 @@ class AESChatApp {
         this.socket.on('message', (msg) => {
             this.addMessage(msg, true);
 
-            // Mark as read if not own message
+            // Play notification sound for incoming messages (not own messages)
             if (msg.userId !== this.userId && msg.type !== 'system') {
+                this.playMessageSound();
                 this.socket.emit('mark-read', { messageIds: [msg.id] });
             }
         });
